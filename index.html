@@ -264,7 +264,7 @@
     <div style="height:10px"></div>
 
     <div class="card">
-      <div style="font-weight:950;font-size:16px">Migration Status GLS (por Módulo)</div>
+      <div style="font-weight:950;font-size:16px">Migration Status (por Módulo)</div>
       <div class="muted" id="glsMeta"></div>
       <div style="height:10px"></div>
 
@@ -284,6 +284,42 @@
       <div class="sep"></div>
       <div class="tiny">Semáforo: &lt;50% rojo | 50–80% amarillo | &gt;80% verde</div>
     </div>
+    <div style="height:10px"></div>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between">
+    <div>
+      <div style="font-weight:950;font-size:16px">Status de todos los objetos</div>
+      <div class="muted" id="objMeta"></div>
+    </div>
+    <div style="min-width:240px">
+      <input id="qObjTable" type="text" placeholder="Buscar (objeto, run, módulo)..." />
+    </div>
+  </div>
+
+  <div style="height:10px"></div>
+
+  <div class="tableWrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Run</th>
+          <th>Module</th>
+          <th>Object</th>
+          <th>Steps</th>
+          <th>Done</th>
+          <th>%</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="objRows"></tbody>
+    </table>
+  </div>
+
+  <div class="sep"></div>
+  <div class="tiny">Esta tabla RESPETA tus filtros. Si desactivás un módulo u objeto, desaparece.</div>
+</div>
   </section>
 </main>
 
@@ -999,7 +1035,80 @@
     el("glsRows").innerHTML = html;
     el("glsMeta").textContent = "Módulos: " + modules.length + " | Filas consideradas: " + (filteredCount||0);
   }
+function statusLabel(p){
+  if(p < 0.5) return "CRÍTICO";
+  if(p <= 0.8) return "EN CURSO";
+  return "OK";
+}
 
+function statusBadge(p){
+  var cls = pctColorClass(p);
+  return '<span class="' + cls + '">' + statusLabel(p) + '</span>';
+}
+
+// Agrupa por Type+Run+Module+Object (como tu tabla original)
+function computeObjectSummary(rows){
+  var map = {};
+  var keys = [];
+
+  for(var i=0;i<rows.length;i++){
+    var r = rows[i];
+    var type = String(r[COL.type]||"").trim();
+    var run  = String(r[COL.runName]||"").trim();
+    var mod  = String(r[COL.module]||"").trim();
+    var obj  = String(r[COL.object]||"").trim();
+
+    if(!type || !run || !mod || !obj) continue;
+
+    var key = type + "||" + run + "||" + mod + "||" + obj;
+    if(!map[key]){
+      map[key] = { type:type, run:run, module:mod, object:obj, total:0, done:0 };
+      keys.push(key);
+    }
+
+    map[key].total += 1;
+    if(isDoneRow(r)) map[key].done += 1;
+  }
+
+  keys.sort();
+  return keys.map(function(k){
+    var g = map[k];
+    g.pct = g.total ? (g.done/g.total) : 0;
+    return g;
+  });
+}
+
+function renderObjectTable(sum){
+  var q = String(el("qObjTable").value || "").toLowerCase().trim();
+
+  var html = "";
+  var shown = 0;
+
+  for(var i=0;i<sum.length;i++){
+    var g = sum[i];
+
+    var hay = (g.type + " " + g.run + " " + g.module + " " + g.object).toLowerCase();
+    if(q && hay.indexOf(q) < 0) continue;
+
+    var cls = pctColorClass(g.pct);
+
+    html += "<tr>";
+    html += "<td>" + g.type + "</td>";
+    html += "<td>" + g.run + "</td>";
+    html += "<td>" + g.module + "</td>";
+    html += "<td><b>" + g.object + "</b></td>";
+    html += "<td>" + g.total + "</td>";
+    html += "<td>" + g.done + "</td>";
+    html += "<td><span class=\"" + cls + "\">" + pct(g.pct) + "</span></td>";
+    html += "<td>" + statusBadge(g.pct) + "</td>";
+    html += "</tr>";
+
+    shown++;
+  }
+
+  el("objRows").innerHTML = html || "<tr><td colspan='8' class='muted'>Sin resultados</td></tr>";
+  el("objMeta").textContent = "Objetos: " + sum.length + " | Mostrados: " + shown;
+}
   // ===============================
   // Render dashboard
   // ===============================
@@ -1036,6 +1145,9 @@
     var gls = computeGLS(filtered);
     renderGLS(gls, filtered.length);
 
+        // Status de todos los objetos
+    var objSum = computeObjectSummary(filtered);
+    renderObjectTable(objSum);
     state.last = { filtered: filtered, gls: gls, kpi: k };
   }
 
@@ -1066,6 +1178,12 @@
     el("qModules").addEventListener("input", function(){ applySearch("qModules","modules"); });
     el("qObjects").addEventListener("input", function(){ applySearch("qObjects","objects"); });
     el("qTables").addEventListener("input", function(){ applySearch("qTables","tableGroups"); });
+    el("qObjTable").addEventListener("input", function(){
+  if(state.last && state.last.filtered){
+    var objSum = computeObjectSummary(state.last.filtered);
+    renderObjectTable(objSum);
+  }
+});
   }
 
   // ===============================
