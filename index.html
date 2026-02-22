@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Migration Status Portal</title>
+
+  <!-- SIN CDN: este archivo debe estar en la misma carpeta que index.html -->
   <script src="./xlsx.full.min.js"></script>
 
   <style>
@@ -37,11 +39,13 @@
     .r{background:#fef2f2;border-color:#fecaca;color:#991b1b}
     .warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:10px;border-radius:12px;font-size:12px;line-height:1.35}
     .hint{font-size:12px;color:#374151;background:#f9fafb;border:1px solid #eef2f7;padding:10px;border-radius:12px}
+    code{background:#f3f4f6;padding:1px 6px;border-radius:8px}
     .svgwrap{width:100%;overflow:auto}
     .err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:12px;font-size:12px;white-space:pre-wrap;display:none}
     .tiny{font-size:11px;color:#6b7280}
     .dbg{font-size:12px;color:#374151;background:#f9fafb;border:1px solid #eef2f7;padding:10px;border-radius:12px}
-    code{background:#f3f4f6;padding:1px 6px;border-radius:8px}
+    .chk{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .chk label{display:flex;gap:6px;align-items:center;font-size:12px;color:#374151}
   </style>
 </head>
 
@@ -52,6 +56,7 @@
 </header>
 
 <main>
+  <!-- CONTROLES -->
   <section class="card">
     <div class="row">
       <input id="file" type="file" accept=".xlsx,.xls" />
@@ -73,6 +78,7 @@
         <div class="muted"><b>Type</b></div>
         <div class="list" id="types"></div>
       </div>
+
       <div>
         <div class="muted"><b>Run name</b></div>
         <input id="qRuns" type="text" placeholder="Buscar run…" />
@@ -110,7 +116,7 @@
     <div class="sep"></div>
 
     <div class="hint">
-      <b>Tip:</b> si la curva no aparece, mirá el “Debug” (te dice cuántas filas tienen tiempo válido).<br/>
+      <b>Tip:</b> si la curva no se ve, mirá el “Debug curva”.<br/>
       Filas sin tiempos completos se consideran “en curso” y no se grafican.
     </div>
 
@@ -118,6 +124,7 @@
     <div id="errors" class="err"></div>
   </section>
 
+  <!-- DASHBOARD -->
   <section>
     <div class="kpis" id="kpis"></div>
 
@@ -134,8 +141,21 @@
 
       <div class="sep"></div>
       <div class="warn">
-        La curva usa <b>End date/time</b> si existe; si no, usa <b>Start + Real runtime</b>.<br/>
-        Si una fila no tiene Start/End suficientes, <b>no se grafica</b>.
+        Curva usa <b>End date/time</b> si existe; si no, usa <b>Start + Real runtime</b>.
+        Filas sin tiempo suficiente no se grafican.
+      </div>
+    </div>
+
+    <div style="height:10px"></div>
+
+    <div class="card">
+      <div style="font-weight:900">Curva por hora (cliente)</div>
+      <div class="muted" id="hourlyMeta"></div>
+      <div style="height:10px"></div>
+      <div class="svgwrap" id="curveHourly"></div>
+      <div class="sep"></div>
+      <div class="warn">
+        Esta curva agrupa el avance acumulado por <b>hora</b> (según fin del step).
       </div>
     </div>
 
@@ -144,7 +164,18 @@
     <div class="card">
       <div style="font-weight:900">Resumen por Objeto (tablas → objeto)</div>
       <div class="muted" id="meta"></div>
+
       <div style="height:10px"></div>
+
+      <!-- Filtro de status -->
+      <div class="chk">
+        <label><input type="checkbox" id="fOK" checked> OK</label>
+        <label><input type="checkbox" id="fRUN" checked> EN CURSO</label>
+        <label><input type="checkbox" id="fCRIT" checked> CRÍTICO</label>
+      </div>
+
+      <div style="height:10px"></div>
+
       <div style="overflow:auto">
         <table>
           <thead>
@@ -162,6 +193,7 @@
 
 <script>
 (function(){
+  // === Columnas esperadas (ajustá solo acá si cambia el export) ===
   var COL = {
     type: "Type",
     runName: "Run name",
@@ -177,6 +209,7 @@
   };
 
   function el(id){ return document.getElementById(id); }
+
   var state = { raw: [], last: null };
 
   function showError(msg){
@@ -349,9 +382,8 @@
   }
 
   // runtime en segundos:
-  // - si viene "00:00:00" -> 0 (válido)
-  // - si viene vacío / null -> null (no válido)
-  // - si viene número Excel -> segundos
+  // - "00:00:00" -> 0 (válido)
+  // - vacío/null -> null (no usable)
   function parseRuntimeSeconds(v){
     if(v === null || v === undefined) return null;
 
@@ -367,6 +399,7 @@
     return Number(m[1])*3600 + Number(m[2])*60 + Number(m[3]);
   }
 
+  // ===== filtros principales =====
   function filterRows(){
     var types   = readChecked("type");
     var runs    = readChecked("run");
@@ -392,6 +425,7 @@
     return out;
   }
 
+  // ===== summary =====
   function computeSummary(rows){
     var map = {};
     var keys = [];
@@ -439,67 +473,73 @@
     return s/arr.length;
   }
 
-  // ✅ Curva:
-  // 1) si hay End date/time => usar ese fin
-  // 2) si no, usar Start + runtime (runtime puede ser 0)
-  // 3) si no hay suficiente, no incluir
+  // ===== status filter (tabla) =====
+  function statusFilter(p){
+    var ok = el("fOK").checked;
+    var run = el("fRUN").checked;
+    var crit = el("fCRIT").checked;
+
+    if(p >= 1 && !ok) return false;
+    if(p >= 0.5 && p < 1 && !run) return false;
+    if(p < 0.5 && !crit) return false;
+    return true;
+  }
+
+  // ===== curva por run =====
   function buildEvolutionSeries(rows){
-  // Totales del run (según filtro) por tipo
-  var totalAll = { EXP:0, IMP:0 };
-  for (var i=0;i<rows.length;i++){
-    var tp = String(rows[i][COL.type]||"").trim().toUpperCase();
-    if(tp==="EXP" || tp==="IMP") totalAll[tp] += 1;
-  }
-
-  var events = [];
-  var dbg = { totalRows: rows.length, totalEXP: totalAll.EXP, totalIMP: totalAll.IMP, withEnd:0, withStartRuntime:0, skipped:0 };
-
-  for(var i=0;i<rows.length;i++){
-    var r = rows[i];
-    var type = String(r[COL.type] || "").trim().toUpperCase();
-    if(type !== "EXP" && type !== "IMP") continue;
-
-    // 1) End date/time
-    var end = parseDateTime(r[COL.endDate], r[COL.endTime]);
-    if(end){
-      dbg.withEnd += 1;
-      events.push({ t:end, type:type, done:isDoneRow(r) });
-      continue;
+    // Totales del filtro por tipo (incluye filas sin tiempo)
+    var totalAll = { EXP:0, IMP:0 };
+    for (var i=0;i<rows.length;i++){
+      var tp = String(rows[i][COL.type]||"").trim().toUpperCase();
+      if(tp==="EXP" || tp==="IMP") totalAll[tp] += 1;
     }
 
-    // 2) Start + runtime (runtime puede ser 0; null significa “vacío/no usable”)
-    var start = parseDateTime(r[COL.startDate], r[COL.startTime]);
-    var durS  = parseRuntimeSeconds(r[COL.realRuntime]); // null si vacío; 0 si "00:00:00"
-    if(start && durS !== null){
-      dbg.withStartRuntime += 1;
-      events.push({ t:new Date(start.getTime() + durS*1000), type:type, done:isDoneRow(r) });
-      continue;
+    var events = [];
+    var dbg = { totalRows: rows.length, totalEXP: totalAll.EXP, totalIMP: totalAll.IMP, withEnd:0, withStartRuntime:0, skipped:0 };
+
+    for(var i=0;i<rows.length;i++){
+      var r = rows[i];
+      var type = String(r[COL.type] || "").trim().toUpperCase();
+      if(type !== "EXP" && type !== "IMP") continue;
+
+      var end = parseDateTime(r[COL.endDate], r[COL.endTime]);
+      if(end){
+        dbg.withEnd += 1;
+        events.push({ t:end, type:type, done:isDoneRow(r) });
+        continue;
+      }
+
+      var start = parseDateTime(r[COL.startDate], r[COL.startTime]);
+      var durS  = parseRuntimeSeconds(r[COL.realRuntime]); // null si vacío; 0 si "00:00:00"
+      if(start && durS !== null){
+        dbg.withStartRuntime += 1;
+        events.push({ t:new Date(start.getTime() + durS*1000), type:type, done:isDoneRow(r) });
+        continue;
+      }
+
+      dbg.skipped += 1;
     }
 
-    // 3) Sin tiempo suficiente: queda fuera del gráfico (pero sigue contando en el total)
-    dbg.skipped += 1;
+    events.sort(function(a,b){ return a.t - b.t; });
+
+    var doneAcc = { EXP:0, IMP:0 };
+    var series = [];
+
+    for(var j=0;j<events.length;j++){
+      var e = events[j];
+      if(e.done) doneAcc[e.type] += 1;
+
+      var expPct = totalAll.EXP ? (doneAcc.EXP / totalAll.EXP) : 0;
+      var impPct = totalAll.IMP ? (doneAcc.IMP / totalAll.IMP) : 0;
+
+      var denom = (totalAll.EXP && totalAll.IMP) ? 2 : ((totalAll.EXP || totalAll.IMP) ? 1 : 1);
+      var totalPct = (expPct + impPct) / denom;
+
+      series.push({ t:e.t, expPct:expPct, impPct:impPct, totalPct:totalPct });
+    }
+
+    return { series: series, dbg: dbg, eventsCount: events.length };
   }
-
-  events.sort(function(a,b){ return a.t - b.t; });
-
-  var doneAcc = { EXP:0, IMP:0 };
-  var series = [];
-
-  for(var j=0;j<events.length;j++){
-    var e = events[j];
-    if(e.done) doneAcc[e.type] += 1;
-
-    var expPct = totalAll.EXP ? (doneAcc.EXP / totalAll.EXP) : 0;
-    var impPct = totalAll.IMP ? (doneAcc.IMP / totalAll.IMP) : 0;
-
-    var denom = (totalAll.EXP && totalAll.IMP) ? 2 : ((totalAll.EXP || totalAll.IMP) ? 1 : 1);
-    var totalPct = (expPct + impPct) / denom;
-
-    series.push({ t:e.t, expPct:expPct, impPct:impPct, totalPct:totalPct });
-  }
-
-  return { series: series, dbg: dbg, eventsCount: events.length };
-}
 
   function renderCurve(series){
     if(!series.length){
@@ -570,10 +610,111 @@
     el("curve").innerHTML = svg;
   }
 
+  // ===== curva por hora (cliente) =====
+  function buildHourlySeries(rows){
+    var total = rows.length;
+    if(!total) return { series:[], minT:null, maxT:null, total:0, eventsUsed:0 };
+
+    var events = [];
+    for(var i=0;i<rows.length;i++){
+      var r = rows[i];
+
+      var dt = parseDateTime(r[COL.endDate], r[COL.endTime]);
+      if(!dt){
+        var st = parseDateTime(r[COL.startDate], r[COL.startTime]);
+        var dur = parseRuntimeSeconds(r[COL.realRuntime]);
+        if(st && dur !== null){
+          dt = new Date(st.getTime() + dur*1000);
+        }
+      }
+      if(!dt) continue;
+
+      events.push({ t:dt, done:isDoneRow(r) });
+    }
+
+    events.sort(function(a,b){ return a.t - b.t; });
+
+    // bucket por hora (Date redondeada a la hora)
+    var buckets = {}; // key(ms) -> doneAcc
+    var doneAcc = 0;
+
+    for(var j=0;j<events.length;j++){
+      if(events[j].done) doneAcc++;
+
+      var t = events[j].t;
+      var hour = new Date(t.getFullYear(), t.getMonth(), t.getDate(), t.getHours(), 0, 0, 0).getTime();
+      buckets[hour] = doneAcc; // acumulado al cierre de esa hora
+    }
+
+    var keys = Object.keys(buckets).map(function(k){ return Number(k); }).sort(function(a,b){ return a-b; });
+    var series = keys.map(function(ms){
+      return { t:new Date(ms), pct: buckets[ms] / total };
+    });
+
+    return {
+      series: series,
+      minT: series.length ? series[0].t : null,
+      maxT: series.length ? series[series.length-1].t : null,
+      total: total,
+      eventsUsed: events.length
+    };
+  }
+
+  function renderHourlyCurve(h){
+    var series = h.series;
+    if(!series.length){
+      el("hourlyMeta").textContent = "Sin curva horaria: no hay tiempos suficientes en el filtro actual.";
+      el("curveHourly").innerHTML = "";
+      return;
+    }
+
+    el("hourlyMeta").textContent =
+      "Horas: " + series.length +
+      " | Eventos usados: " + h.eventsUsed +
+      " | Total pasos (filas filtradas): " + h.total +
+      " | Desde " + h.minT.toLocaleString("es-AR",{hour12:false}) +
+      " hasta " + h.maxT.toLocaleString("es-AR",{hour12:false}) +
+      " | Último " + pct(series[series.length-1].pct);
+
+    var W = 920, H = 260, padL=44, padR=20, padT=16, padB=34;
+
+    function x(i){ return padL + (series.length===1 ? 0 : (i/(series.length-1)))*(W-padL-padR); }
+    function y(p){ return padT + (1-p)*(H-padT-padB); }
+
+    var grid = "";
+    var ps = [0,0.25,0.5,0.75,1];
+    for(var k=0;k<ps.length;k++){
+      var p = ps[k];
+      var yy = y(p);
+      grid += '<line x1="' + padL + '" y1="' + yy + '" x2="' + (W-padR) + '" y2="' + yy + '" stroke="#eef2f7"/>';
+      grid += '<text x="8" y="' + (yy+4) + '" font-size="11" fill="#6b7280">' + Math.round(p*100) + "%</text>";
+    }
+
+    var d = "";
+    for(var i=0;i<series.length;i++){
+      var px = x(i);
+      var py = y(series[i].pct);
+      d += (i===0 ? ("M " + px + " " + py) : (" L " + px + " " + py));
+    }
+
+    var svg = '';
+    svg += '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg">';
+    svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="white"/>';
+    svg += grid;
+    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
+    svg += '<line x1="' + padL + '" y1="' + (H-padB) + '" x2="' + (W-padR) + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
+    svg += '<path d="' + d + '" fill="none" stroke="#111827" stroke-width="2.5"/>';
+    svg += "</svg>";
+
+    el("curveHourly").innerHTML = svg;
+  }
+
+  // ===== render =====
   function renderDashboard(){
     var filtered = filterRows();
     var sum = computeSummary(filtered);
 
+    // KPIs por objeto (promedio)
     var exp = [], imp = [];
     for(var i=0;i<sum.length;i++){
       if(String(sum[i].type).toUpperCase() === "EXP") exp.push(sum[i]);
@@ -586,7 +727,9 @@
     var totalPct = (expPct + impPct)/denom;
 
     var critical = 0;
-    for(var j=0;j<sum.length;j++) if(sum[j].pct < 0.5) critical += 1;
+    for(var j=0;j<sum.length;j++){
+      if(sum[j].pct < 0.5) critical += 1;
+    }
 
     el("kpis").innerHTML =
       '<div class="kpi"><div class="v">' + pct(totalPct) + '</div><div class="l">Avance total</div></div>' +
@@ -596,8 +739,11 @@
 
     el("meta").textContent = "Filas incluidas: " + filtered.length + " | Objetos (Type+Run+Module+Object): " + sum.length;
 
+    // Tabla con filtro status
     var rowsHtml = "";
     for(var r=0;r<sum.length;r++){
+      if(!statusFilter(sum[r].pct)) continue;
+
       rowsHtml += "<tr>";
       rowsHtml += "<td>" + sum[r].type + "</td>";
       rowsHtml += "<td>" + sum[r].runName + "</td>";
@@ -611,17 +757,22 @@
     }
     el("rows").innerHTML = rowsHtml;
 
+    // Curva por run
     var res = buildEvolutionSeries(filtered);
     renderCurve(res.series);
 
-  el("curveDbg").innerHTML =
-  "<b>Debug curva</b><br/>" +
-  "Filas filtradas: <b>" + res.dbg.totalRows + "</b><br/>" +
-  "Total EXP: <b>" + res.dbg.totalEXP + "</b> | Total IMP: <b>" + res.dbg.totalIMP + "</b><br/>" +
-  "Eventos por End date/time: <b>" + res.dbg.withEnd + "</b><br/>" +
-  "Eventos por Start + Runtime: <b>" + res.dbg.withStartRuntime + "</b><br/>" +
-  "Saltadas (sin tiempo suficiente): <b>" + res.dbg.skipped + "</b><br/>" +
-  "Total eventos graficados: <b>" + res.eventsCount + "</b>";
+    el("curveDbg").innerHTML =
+      "<b>Debug curva</b><br/>" +
+      "Filas filtradas: <b>" + res.dbg.totalRows + "</b><br/>" +
+      "Total EXP: <b>" + res.dbg.totalEXP + "</b> | Total IMP: <b>" + res.dbg.totalIMP + "</b><br/>" +
+      "Eventos por End date/time: <b>" + res.dbg.withEnd + "</b><br/>" +
+      "Eventos por Start + Runtime: <b>" + res.dbg.withStartRuntime + "</b><br/>" +
+      "Saltadas (sin tiempo suficiente): <b>" + res.dbg.skipped + "</b><br/>" +
+      "Total eventos graficados: <b>" + res.eventsCount + "</b>";
+
+    // Curva por hora
+    var h = buildHourlySeries(filtered);
+    renderHourlyCurve(h);
 
     state.last = { filtered: filtered, sum: sum };
   }
@@ -634,9 +785,8 @@
   }
 
   function wireUpdates(){
-    function onChange(){
-      renderDashboard();
-    }
+    function onChange(){ renderDashboard(); }
+
     var groups = ["type","run","module","object","tgroup"];
     for(var gi=0;gi<groups.length;gi++){
       (function(g){
@@ -644,6 +794,10 @@
         for(var i=0;i<inputs.length;i++) inputs[i].addEventListener("change", onChange);
       })(groups[gi]);
     }
+
+    el("fOK").addEventListener("change", onChange);
+    el("fRUN").addEventListener("change", onChange);
+    el("fCRIT").addEventListener("change", onChange);
   }
 
   function downloadHTMLReport(){
@@ -667,6 +821,13 @@
       "</div>",
       "<div style=\"height:10px\"></div>",
       "<div class=\"card\">",
+      "<div style=\"font-weight:900\">Curva por hora</div>",
+      "<div class=\"muted\">", el("hourlyMeta").textContent, "</div>",
+      "<div style=\"height:10px\"></div>",
+      "<div class=\"svgwrap\">", el("curveHourly").innerHTML, "</div>",
+      "</div>",
+      "<div style=\"height:10px\"></div>",
+      "<div class=\"card\">",
       "<div style=\"font-weight:900\">Resumen por Objeto</div>",
       "<div class=\"muted\">", el("meta").textContent, "</div>",
       "<div style=\"height:10px\"></div>",
@@ -678,6 +839,7 @@
       "</div>",
       "</body></html>"
     ];
+
     var html = parts.join("");
     var blob = new Blob([html], {type:"text/html;charset=utf-8"});
     var a = document.createElement("a");
@@ -687,19 +849,12 @@
     URL.revokeObjectURL(a.href);
   }
 
-  function initSearch(){
-    el("qRuns").addEventListener("input", function(){ applySearch("qRuns","runs"); });
-    el("qModules").addEventListener("input", function(){ applySearch("qModules","modules"); });
-    el("qObjects").addEventListener("input", function(){ applySearch("qObjects","objects"); });
-    el("qTables").addEventListener("input", function(){ applySearch("qTables","tableGroups"); });
-  }
-
-  // EVENTS
+  // ======= EVENTS =======
   el("file").addEventListener("change", function(e){
     clearError();
 
     if(typeof XLSX === "undefined"){
-      showError("No se encontró XLSX.\nSubí xlsx.full.min.js en la MISMA carpeta que index.html.");
+      showError("No se encontró XLSX. Subí xlsx.full.min.js en la misma carpeta que index.html.");
       return;
     }
 
@@ -729,10 +884,21 @@
       mkChecklist("tableGroups", tgroups, "tgroup");
 
       enableUI();
-      initSearch();
+
+      el("qRuns").value = "";
+      el("qModules").value = "";
+      el("qObjects").value = "";
+      el("qTables").value = "";
+
+      applySearch("qRuns","runs");
+      applySearch("qModules","modules");
+      applySearch("qObjects","objects");
+      applySearch("qTables","tableGroups");
+
       wireUpdates();
 
       el("status").textContent = "Cargado: " + file.name + " | Filas: " + json.length;
+
       renderDashboard();
     }).catch(function(err){
       showError("Error leyendo XLSX:\n" + (err && err.message ? err.message : String(err)));
@@ -753,6 +919,11 @@
     setAll(false);
     renderDashboard();
   });
+
+  el("qRuns").addEventListener("input", function(){ applySearch("qRuns","runs"); });
+  el("qModules").addEventListener("input", function(){ applySearch("qModules","modules"); });
+  el("qObjects").addEventListener("input", function(){ applySearch("qObjects","objects"); });
+  el("qTables").addEventListener("input", function(){ applySearch("qTables","tableGroups"); });
 
 })();
 </script>
