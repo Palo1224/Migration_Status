@@ -296,7 +296,13 @@
       <input id="qObjTable" type="text" placeholder="Buscar (objeto, run, módulo)..." />
     </div>
   </div>
+<div style="height:10px"></div>
 
+<div class="row" style="gap:12px">
+  <label class="chip"><input type="checkbox" id="fOK" checked /> OK (&gt;80%)</label>
+  <label class="chip"><input type="checkbox" id="fRUN" checked /> EN CURSO (50–80%)</label>
+  <label class="chip"><input type="checkbox" id="fCRIT" checked /> CRÍTICO (&lt;50%)</label>
+</div>
   <div style="height:10px"></div>
 
   <div class="tableWrap">
@@ -1040,7 +1046,17 @@ function statusLabel(p){
   if(p <= 0.8) return "EN CURSO";
   return "OK";
 }
+function passStatusFilter(p){
+  var ok = el("fOK").checked;
+  var run = el("fRUN").checked;
+  var crit = el("fCRIT").checked;
 
+  if(p > 0.8 && !ok) return false;
+  if(p >= 0.5 && p <= 0.8 && !run) return false;
+  if(p < 0.5 && !crit) return false;
+
+  return true;
+}
 function statusBadge(p){
   var cls = pctColorClass(p);
   return '<span class="' + cls + '">' + statusLabel(p) + '</span>';
@@ -1089,7 +1105,7 @@ function renderObjectTable(sum){
 
     var hay = (g.type + " " + g.run + " " + g.module + " " + g.object).toLowerCase();
     if(q && hay.indexOf(q) < 0) continue;
-
+    if(!passStatusFilter(g.pct)) continue; // <-- NUEVO
     var cls = pctColorClass(g.pct);
 
     html += "<tr>";
@@ -1173,7 +1189,14 @@ function renderObjectTable(sum){
         saveProfileLocal();
       }
     });
-
+    ["fOK","fRUN","fCRIT"].forEach(function(id){
+      el(id).addEventListener("change", function(){
+        if(state.last && state.last.filtered){
+          var objSum = computeObjectSummary(state.last.filtered);
+          renderObjectTable(objSum);
+        }
+      });
+    });
     el("qRuns").addEventListener("input", function(){ applySearch("qRuns","runs"); });
     el("qModules").addEventListener("input", function(){ applySearch("qModules","modules"); });
     el("qObjects").addEventListener("input", function(){ applySearch("qObjects","objects"); });
