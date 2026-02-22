@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Migration Status Portal</title>
+  <script src="./xlsx.full.min.js"></script>
+
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:#f6f7fb}
+    header{padding:14px 18px;background:#111827;color:#fff;display:flex;gap:10px;align-items:center;justify-content:space-between}
+    header h1{margin:0;font-size:15px;font-weight:800}
+    header .muted{color:#cbd5e1;font-size:12px}
+    main{padding:16px 18px;display:grid;grid-template-columns:420px 1fr;gap:14px}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .btn{border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;font-weight:800}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .muted{color:#6b7280;font-size:12px}
+    .sep{height:1px;background:#eef2f7;margin:10px 0}
+    .kpis{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:10px}
+    .kpi{border:1px solid #e5e7eb;border-radius:12px;padding:10px}
+    .kpi .v{font-size:22px;font-weight:900}
+    .kpi .l{font-size:12px;color:#6b7280}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .list{max-height:220px;overflow:auto;border:1px solid #eef2f7;border-radius:10px;padding:8px}
+    .item{display:flex;gap:8px;align-items:center;padding:4px 2px}
+    .item label{cursor:pointer}
+    input[type="file"]{width:100%}
+    input[type="text"]{width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{border-bottom:1px solid #eef2f7;padding:8px;text-align:left;vertical-align:top}
+    th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#374151}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:900;border:1px solid #e5e7eb}
+    .g{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+    .y{background:#fffbeb;border-color:#fde68a;color:#92400e}
+    .r{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+    .warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:10px;border-radius:12px;font-size:12px;line-height:1.35}
+    .hint{font-size:12px;color:#374151;background:#f9fafb;border:1px solid #eef2f7;padding:10px;border-radius:12px}
+    .svgwrap{width:100%;overflow:auto}
+    .err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:12px;font-size:12px;white-space:pre-wrap;display:none}
+    .tiny{font-size:11px;color:#6b7280}
+    .dbg{font-size:12px;color:#374151;background:#f9fafb;border:1px solid #eef2f7;padding:10px;border-radius:12px}
+    code{background:#f3f4f6;padding:1px 6px;border-radius:8px}
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Migration Status Portal</h1>
+  <div class="muted" id="status">Sin archivo</div>
+</header>
+
+<main>
+  <section class="card">
+    <div class="row">
+      <input id="file" type="file" accept=".xlsx,.xls" />
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="row">
+      <button class="btn" id="selectAll" disabled>Seleccionar todo</button>
+      <button class="btn" id="selectNone" disabled>Seleccionar nada</button>
+      <button class="btn" id="apply" disabled>Aplicar</button>
+      <button class="btn" id="download" disabled>Descargar HTML</button>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="grid2">
+      <div>
+        <div class="muted"><b>Type</b></div>
+        <div class="list" id="types"></div>
+      </div>
+      <div>
+        <div class="muted"><b>Run name</b></div>
+        <input id="qRuns" type="text" placeholder="Buscar run…" />
+        <div style="height:6px"></div>
+        <div class="list" id="runs"></div>
+        <div class="tiny">La curva se arma usando solo los Run name seleccionados.</div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="grid2">
+      <div>
+        <div class="muted"><b>Module ID</b></div>
+        <input id="qModules" type="text" placeholder="Buscar módulo…" />
+        <div style="height:6px"></div>
+        <div class="list" id="modules"></div>
+      </div>
+
+      <div>
+        <div class="muted"><b>Data object</b></div>
+        <input id="qObjects" type="text" placeholder="Buscar objeto…" />
+        <div style="height:6px"></div>
+        <div class="list" id="objects"></div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="muted"><b>Table Groups</b></div>
+    <input id="qTables" type="text" placeholder="Buscar grupo… ej: BUT*, /SNP/*, Z*" />
+    <div style="height:6px"></div>
+    <div class="list" id="tableGroups"></div>
+
+    <div class="sep"></div>
+
+    <div class="hint">
+      <b>Tip:</b> si la curva no aparece, mirá el “Debug” (te dice cuántas filas tienen tiempo válido).<br/>
+      Filas sin tiempos completos se consideran “en curso” y no se grafican.
+    </div>
+
+    <div style="height:10px"></div>
+    <div id="errors" class="err"></div>
+  </section>
+
+  <section>
+    <div class="kpis" id="kpis"></div>
+
+    <div style="height:10px"></div>
+
+    <div class="card">
+      <div style="font-weight:900">Curva de evolución (por Run name)</div>
+      <div class="muted" id="curveMeta"></div>
+      <div style="height:10px"></div>
+      <div class="svgwrap" id="curve"></div>
+
+      <div class="sep"></div>
+      <div class="dbg" id="curveDbg"></div>
+
+      <div class="sep"></div>
+      <div class="warn">
+        La curva usa <b>End date/time</b> si existe; si no, usa <b>Start + Real runtime</b>.<br/>
+        Si una fila no tiene Start/End suficientes, <b>no se grafica</b>.
+      </div>
+    </div>
+
+    <div style="height:10px"></div>
+
+    <div class="card">
+      <div style="font-weight:900">Resumen por Objeto (tablas → objeto)</div>
+      <div class="muted" id="meta"></div>
+      <div style="height:10px"></div>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th><th>Run name</th><th>Module</th><th>Object</th>
+              <th>Total</th><th>Done</th><th>%</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+  var COL = {
+    type: "Type",
+    runName: "Run name",
+    module: "Module ID",
+    object: "Data object",
+    table: "Table",
+    progress: "Progress",
+    startDate: "Start date",
+    startTime: "Start time",
+    endDate: "End date",
+    endTime: "End time",
+    realRuntime: "Real runtime"
+  };
+
+  function el(id){ return document.getElementById(id); }
+  var state = { raw: [], last: null };
+
+  function showError(msg){
+    var box = el("errors");
+    box.style.display = "";
+    box.textContent = msg;
+  }
+  function clearError(){
+    var box = el("errors");
+    box.style.display = "none";
+    box.textContent = "";
+  }
+
+  function uniq(arr){
+    var set = {};
+    var out = [];
+    for(var i=0;i<arr.length;i++){
+      var v = arr[i];
+      if(v === null || v === undefined) continue;
+      v = String(v).trim();
+      if(!v) continue;
+      if(!set[v]){ set[v]=true; out.push(v); }
+    }
+    out.sort(function(a,b){ return a.localeCompare(b); });
+    return out;
+  }
+
+  function pct(n){ return String(Math.round(n*100)) + "%"; }
+
+  function statusPill(p){
+    if(p >= 1) return '<span class="pill g">OK</span>';
+    if(p >= 0.5) return '<span class="pill y">EN CURSO</span>';
+    return '<span class="pill r">CRÍTICO</span>';
+  }
+
+  function parseProgress(v){
+    if (v === null || v === undefined) return null;
+    var s = String(v).trim();
+    if(!s) return null;
+
+    var up = s.toUpperCase();
+    if (up === "DONE" || up === "FINISHED" || up === "OK" || up === "SUCCESS") return 100;
+
+    s = s.replace("%","").trim().replace(",", ".");
+    var n = Number(s);
+    return isFinite(n) ? n : null;
+  }
+
+  function isDoneRow(r){
+    var pr = parseProgress(r[COL.progress]);
+    return (pr !== null && pr >= 100);
+  }
+
+  function tableGroupName(table){
+    var s = String(table === null || table === undefined ? "" : table).trim();
+    if(!s) return "";
+    if(s.indexOf("/") === 0){
+      var parts = s.split("/");
+      var p = "";
+      for(var i=0;i<parts.length;i++){
+        if(parts[i]){ p = parts[i]; break; }
+      }
+      if(!p) p = "SLASH";
+      return "/" + p + "/*";
+    }
+    if(/^Z/i.test(s)) return "Z*";
+    if(/^Y/i.test(s)) return "Y*";
+    var m = s.match(/^[A-Za-z]{3}/);
+    return m ? (m[0].toUpperCase() + "*") : "OTROS";
+  }
+
+  function mkChecklist(containerId, values, groupKey){
+    var html = "";
+    for(var i=0;i<values.length;i++){
+      var v = values[i];
+      var id = groupKey + "__" + encodeURIComponent(v);
+      html += '<div class="item" data-text="' + encodeURIComponent(v.toLowerCase()) + '">';
+      html += '<input type="checkbox" id="' + id + '" data-group="' + groupKey + '" data-value="' + v + '" checked />';
+      html += '<label for="' + id + '">' + v + '</label>';
+      html += "</div>";
+    }
+    el(containerId).innerHTML = html;
+  }
+
+  function readChecked(groupKey){
+    var inputs = document.querySelectorAll('input[type="checkbox"][data-group="' + groupKey + '"]');
+    var set = {};
+    for(var i=0;i<inputs.length;i++){
+      if(inputs[i].checked){
+        set[inputs[i].getAttribute("data-value")] = true;
+      }
+    }
+    return set;
+  }
+
+  function setAll(checked){
+    var inputs = document.querySelectorAll('input[type="checkbox"][data-group]');
+    for(var i=0;i<inputs.length;i++){
+      inputs[i].checked = checked;
+    }
+  }
+
+  function applySearch(inputId, listId){
+    var q = String(el(inputId).value || "").toLowerCase().trim();
+    var items = el(listId).querySelectorAll(".item");
+    for(var i=0;i<items.length;i++){
+      var txt = decodeURIComponent(items[i].getAttribute("data-text") || "");
+      items[i].style.display = (!q || txt.indexOf(q) >= 0) ? "" : "none";
+    }
+  }
+
+  // === Excel dates ===
+  function excelDateToJS(n){
+    if (typeof XLSX !== "undefined" && XLSX.SSF && XLSX.SSF.parse_date_code) {
+      var o = XLSX.SSF.parse_date_code(n);
+      if(o) return new Date(o.y, o.m-1, o.d, o.H||0, o.M||0, o.S||0);
+    }
+    var epoch = new Date(Date.UTC(1899, 11, 30));
+    return new Date(epoch.getTime() + n * 86400 * 1000);
+  }
+
+  function parseTimeParts(t){
+    if(t === null || t === undefined) return null;
+
+    if(typeof t === "number" && isFinite(t)){
+      var sec = Math.round(t * 86400);
+      var hh = Math.floor(sec/3600);
+      var mm = Math.floor((sec%3600)/60);
+      var ss = sec%60;
+      return {hh:hh, mm:mm, ss:ss};
+    }
+
+    var s = String(t).trim();
+    if(!s) return null;
+    var m = s.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+    if(!m) return null;
+    return {hh:Number(m[1]), mm:Number(m[2]), ss:Number(m[3])};
+  }
+
+  function parseDateOnly(d){
+    if(d === null || d === undefined) return null;
+
+    if(typeof d === "number" && isFinite(d)){
+      var dd = excelDateToJS(d);
+      return new Date(dd.getFullYear(), dd.getMonth(), dd.getDate());
+    }
+
+    if(d instanceof Date && !isNaN(d)){
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+
+    var s = String(d).trim();
+    if(!s) return null;
+
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(m) return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); // DD/MM/YYYY
+    if(m) return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+
+    return null;
+  }
+
+  function parseDateTime(d, t){
+    var dateObj = parseDateOnly(d);
+    var tp = parseTimeParts(t);
+    if(!dateObj || !tp) return null;
+    var dt = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), tp.hh, tp.mm, tp.ss);
+    return isNaN(dt) ? null : dt;
+  }
+
+  // runtime en segundos:
+  // - si viene "00:00:00" -> 0 (válido)
+  // - si viene vacío / null -> null (no válido)
+  // - si viene número Excel -> segundos
+  function parseRuntimeSeconds(v){
+    if(v === null || v === undefined) return null;
+
+    if(typeof v === "number" && isFinite(v)){
+      return Math.max(0, Math.round(v * 86400));
+    }
+
+    var s = String(v).trim();
+    if(!s) return null;
+
+    var m = s.match(/^(\d{1,3}):(\d{2}):(\d{2})$/);
+    if(!m) return null;
+    return Number(m[1])*3600 + Number(m[2])*60 + Number(m[3]);
+  }
+
+  function filterRows(){
+    var types   = readChecked("type");
+    var runs    = readChecked("run");
+    var modules = readChecked("module");
+    var objects = readChecked("object");
+    var tgroups = readChecked("tgroup");
+
+    var out = [];
+    for(var i=0;i<state.raw.length;i++){
+      var r = state.raw[i];
+      var type = String(r[COL.type] || "").trim();
+      var run  = String(r[COL.runName] || "").trim();
+      var mod  = String(r[COL.module] || "").trim();
+      var obj  = String(r[COL.object] || "").trim();
+      var tab  = String(r[COL.table] || "").trim();
+      if(!type || !run || !mod || !obj || !tab) continue;
+
+      var tg = tableGroupName(tab);
+      if(types[type] && runs[run] && modules[mod] && objects[obj] && tgroups[tg]){
+        out.push(r);
+      }
+    }
+    return out;
+  }
+
+  function computeSummary(rows){
+    var map = {};
+    var keys = [];
+
+    for(var i=0;i<rows.length;i++){
+      var r = rows[i];
+      var type = String(r[COL.type] || "").trim();
+      var run  = String(r[COL.runName] || "").trim();
+      var mod  = String(r[COL.module] || "").trim();
+      var obj  = String(r[COL.object] || "").trim();
+      var tab  = String(r[COL.table] || "").trim();
+      if(!type || !run || !mod || !obj || !tab) continue;
+
+      var key = type + "||" + run + "||" + mod + "||" + obj;
+      if(!map[key]){
+        map[key] = { type:type, runName:run, moduleId:mod, object:obj, total:0, done:0 };
+        keys.push(key);
+      }
+      map[key].total += 1;
+      if(isDoneRow(r)) map[key].done += 1;
+    }
+
+    var out = [];
+    keys.sort();
+    for(var j=0;j<keys.length;j++){
+      var g = map[keys[j]];
+      g.pct = g.total ? (g.done/g.total) : 0;
+      out.push(g);
+    }
+
+    out.sort(function(a,b){
+      return a.type.localeCompare(b.type)
+        || a.runName.localeCompare(b.runName)
+        || a.moduleId.localeCompare(b.moduleId)
+        || a.object.localeCompare(b.object);
+    });
+
+    return out;
+  }
+
+  function avgPct(arr){
+    if(!arr.length) return 0;
+    var s = 0;
+    for(var i=0;i<arr.length;i++) s += arr[i].pct;
+    return s/arr.length;
+  }
+
+  // ✅ Curva:
+  // 1) si hay End date/time => usar ese fin
+  // 2) si no, usar Start + runtime (runtime puede ser 0)
+  // 3) si no hay suficiente, no incluir
+  function buildEvolutionSeries(rows){
+  // Totales del run (según filtro) por tipo
+  var totalAll = { EXP:0, IMP:0 };
+  for (var i=0;i<rows.length;i++){
+    var tp = String(rows[i][COL.type]||"").trim().toUpperCase();
+    if(tp==="EXP" || tp==="IMP") totalAll[tp] += 1;
+  }
+
+  var events = [];
+  var dbg = { totalRows: rows.length, totalEXP: totalAll.EXP, totalIMP: totalAll.IMP, withEnd:0, withStartRuntime:0, skipped:0 };
+
+  for(var i=0;i<rows.length;i++){
+    var r = rows[i];
+    var type = String(r[COL.type] || "").trim().toUpperCase();
+    if(type !== "EXP" && type !== "IMP") continue;
+
+    // 1) End date/time
+    var end = parseDateTime(r[COL.endDate], r[COL.endTime]);
+    if(end){
+      dbg.withEnd += 1;
+      events.push({ t:end, type:type, done:isDoneRow(r) });
+      continue;
+    }
+
+    // 2) Start + runtime (runtime puede ser 0; null significa “vacío/no usable”)
+    var start = parseDateTime(r[COL.startDate], r[COL.startTime]);
+    var durS  = parseRuntimeSeconds(r[COL.realRuntime]); // null si vacío; 0 si "00:00:00"
+    if(start && durS !== null){
+      dbg.withStartRuntime += 1;
+      events.push({ t:new Date(start.getTime() + durS*1000), type:type, done:isDoneRow(r) });
+      continue;
+    }
+
+    // 3) Sin tiempo suficiente: queda fuera del gráfico (pero sigue contando en el total)
+    dbg.skipped += 1;
+  }
+
+  events.sort(function(a,b){ return a.t - b.t; });
+
+  var doneAcc = { EXP:0, IMP:0 };
+  var series = [];
+
+  for(var j=0;j<events.length;j++){
+    var e = events[j];
+    if(e.done) doneAcc[e.type] += 1;
+
+    var expPct = totalAll.EXP ? (doneAcc.EXP / totalAll.EXP) : 0;
+    var impPct = totalAll.IMP ? (doneAcc.IMP / totalAll.IMP) : 0;
+
+    var denom = (totalAll.EXP && totalAll.IMP) ? 2 : ((totalAll.EXP || totalAll.IMP) ? 1 : 1);
+    var totalPct = (expPct + impPct) / denom;
+
+    series.push({ t:e.t, expPct:expPct, impPct:impPct, totalPct:totalPct });
+  }
+
+  return { series: series, dbg: dbg, eventsCount: events.length };
+}
+
+  function renderCurve(series){
+    if(!series.length){
+      el("curveMeta").textContent = "Sin curva: no hay filas con End date/time o Start+Runtime (en el filtro actual).";
+      el("curve").innerHTML = "";
+      return;
+    }
+
+    var minT = series[0].t.getTime();
+    var maxT = series[series.length-1].t.getTime();
+    var span = Math.max(1, maxT - minT);
+
+    var W = 920, H = 260, padL=44, padR=20, padT=16, padB=34;
+
+    function x(t){ return padL + ((t-minT)/span)*(W-padL-padR); }
+    function y(p){ return padT + (1-p)*(H-padT-padB); }
+
+    function pathFor(key){
+      var d = "";
+      for(var i=0;i<series.length;i++){
+        var px = x(series[i].t.getTime());
+        var py = y(series[i][key]);
+        d += (i===0 ? ("M " + px + " " + py) : (" L " + px + " " + py));
+      }
+      return d;
+    }
+
+    var runs = readChecked("run");
+    var runNames = Object.keys(runs); runNames.sort();
+    var runsLabel = runNames.length ? runNames.slice(0,8).join(", ") + (runNames.length>8 ? "…" : "") : "(sin run)";
+
+    var last = series[series.length-1];
+    el("curveMeta").textContent =
+      "Runs: " + runsLabel +
+      " | Desde " + series[0].t.toLocaleString("es-AR",{hour12:false}) +
+      " hasta " + last.t.toLocaleString("es-AR",{hour12:false}) +
+      " | Total " + pct(last.totalPct) +
+      " | EXP " + pct(last.expPct) +
+      " | IMP " + pct(last.impPct);
+
+    var grid = "";
+    var ps = [0,0.25,0.5,0.75,1];
+    for(var k=0;k<ps.length;k++){
+      var p = ps[k];
+      var yy = y(p);
+      grid += '<line x1="' + padL + '" y1="' + yy + '" x2="' + (W-padR) + '" y2="' + yy + '" stroke="#eef2f7"/>';
+      grid += '<text x="8" y="' + (yy+4) + '" font-size="11" fill="#6b7280">' + Math.round(p*100) + "%</text>";
+    }
+
+    var svg = '';
+    svg += '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg">';
+    svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="white"/>';
+    svg += grid;
+    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
+    svg += '<line x1="' + padL + '" y1="' + (H-padB) + '" x2="' + (W-padR) + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
+
+    svg += '<path d="' + pathFor("totalPct") + '" fill="none" stroke="#111827" stroke-width="2.5"/>';
+    svg += '<path d="' + pathFor("expPct") + '" fill="none" stroke="#2563eb" stroke-width="2"/>';
+    svg += '<path d="' + pathFor("impPct") + '" fill="none" stroke="#16a34a" stroke-width="2"/>';
+
+    svg += '<g font-size="12" fill="#111827">';
+    svg += '<circle cx="' + (padL+10) + '" cy="' + (padT+8) + '" r="4" fill="#111827"/><text x="' + (padL+20) + '" y="' + (padT+12) + '">Total</text>';
+    svg += '<circle cx="' + (padL+80) + '" cy="' + (padT+8) + '" r="4" fill="#2563eb"/><text x="' + (padL+90) + '" y="' + (padT+12) + '">Export</text>';
+    svg += '<circle cx="' + (padL+160) + '" cy="' + (padT+8) + '" r="4" fill="#16a34a"/><text x="' + (padL+170) + '" y="' + (padT+12) + '">Import</text>';
+    svg += '</g>';
+
+    svg += "</svg>";
+    el("curve").innerHTML = svg;
+  }
+
+  function renderDashboard(){
+    var filtered = filterRows();
+    var sum = computeSummary(filtered);
+
+    var exp = [], imp = [];
+    for(var i=0;i<sum.length;i++){
+      if(String(sum[i].type).toUpperCase() === "EXP") exp.push(sum[i]);
+      if(String(sum[i].type).toUpperCase() === "IMP") imp.push(sum[i]);
+    }
+
+    var expPct = avgPct(exp);
+    var impPct = avgPct(imp);
+    var denom = (exp.length && imp.length) ? 2 : ((exp.length || imp.length) ? 1 : 1);
+    var totalPct = (expPct + impPct)/denom;
+
+    var critical = 0;
+    for(var j=0;j<sum.length;j++) if(sum[j].pct < 0.5) critical += 1;
+
+    el("kpis").innerHTML =
+      '<div class="kpi"><div class="v">' + pct(totalPct) + '</div><div class="l">Avance total</div></div>' +
+      '<div class="kpi"><div class="v">' + pct(expPct) + '</div><div class="l">Export</div></div>' +
+      '<div class="kpi"><div class="v">' + pct(impPct) + '</div><div class="l">Import</div></div>' +
+      '<div class="kpi"><div class="v">' + critical + '</div><div class="l">Objetos críticos (&lt;50%)</div></div>';
+
+    el("meta").textContent = "Filas incluidas: " + filtered.length + " | Objetos (Type+Run+Module+Object): " + sum.length;
+
+    var rowsHtml = "";
+    for(var r=0;r<sum.length;r++){
+      rowsHtml += "<tr>";
+      rowsHtml += "<td>" + sum[r].type + "</td>";
+      rowsHtml += "<td>" + sum[r].runName + "</td>";
+      rowsHtml += "<td>" + sum[r].moduleId + "</td>";
+      rowsHtml += "<td><b>" + sum[r].object + "</b></td>";
+      rowsHtml += "<td>" + sum[r].total + "</td>";
+      rowsHtml += "<td>" + sum[r].done + "</td>";
+      rowsHtml += "<td><b>" + pct(sum[r].pct) + "</b></td>";
+      rowsHtml += "<td>" + statusPill(sum[r].pct) + "</td>";
+      rowsHtml += "</tr>";
+    }
+    el("rows").innerHTML = rowsHtml;
+
+    var res = buildEvolutionSeries(filtered);
+    renderCurve(res.series);
+
+  el("curveDbg").innerHTML =
+  "<b>Debug curva</b><br/>" +
+  "Filas filtradas: <b>" + res.dbg.totalRows + "</b><br/>" +
+  "Total EXP: <b>" + res.dbg.totalEXP + "</b> | Total IMP: <b>" + res.dbg.totalIMP + "</b><br/>" +
+  "Eventos por End date/time: <b>" + res.dbg.withEnd + "</b><br/>" +
+  "Eventos por Start + Runtime: <b>" + res.dbg.withStartRuntime + "</b><br/>" +
+  "Saltadas (sin tiempo suficiente): <b>" + res.dbg.skipped + "</b><br/>" +
+  "Total eventos graficados: <b>" + res.eventsCount + "</b>";
+
+    state.last = { filtered: filtered, sum: sum };
+  }
+
+  function enableUI(){
+    el("selectAll").disabled = false;
+    el("selectNone").disabled = false;
+    el("apply").disabled = false;
+    el("download").disabled = false;
+  }
+
+  function wireUpdates(){
+    function onChange(){
+      renderDashboard();
+    }
+    var groups = ["type","run","module","object","tgroup"];
+    for(var gi=0;gi<groups.length;gi++){
+      (function(g){
+        var inputs = document.querySelectorAll('input[type="checkbox"][data-group="' + g + '"]');
+        for(var i=0;i<inputs.length;i++) inputs[i].addEventListener("change", onChange);
+      })(groups[gi]);
+    }
+  }
+
+  function downloadHTMLReport(){
+    var parts = [
+      "<!doctype html><html><head><meta charset=\"utf-8\"/>",
+      "<title>Migration Status Report</title>",
+      "<style>", document.querySelector("style").innerHTML, "</style>",
+      "</head><body>",
+      "<header style=\"padding:14px 18px;background:#111827;color:#fff;display:flex;gap:10px;align-items:center;justify-content:space-between\">",
+      "<h1 style=\"margin:0;font-size:15px;font-weight:800\">Migration Status Report</h1>",
+      "<div style=\"color:#cbd5e1;font-size:12px\">Generado: ", new Date().toLocaleString("es-AR",{hour12:false}), "</div>",
+      "</header>",
+      "<div style=\"padding:16px 18px;background:#f6f7fb\">",
+      "<div class=\"kpis\">", el("kpis").innerHTML, "</div>",
+      "<div style=\"height:10px\"></div>",
+      "<div class=\"card\">",
+      "<div style=\"font-weight:900\">Curva de evolución</div>",
+      "<div class=\"muted\">", el("curveMeta").textContent, "</div>",
+      "<div style=\"height:10px\"></div>",
+      "<div class=\"svgwrap\">", el("curve").innerHTML, "</div>",
+      "</div>",
+      "<div style=\"height:10px\"></div>",
+      "<div class=\"card\">",
+      "<div style=\"font-weight:900\">Resumen por Objeto</div>",
+      "<div class=\"muted\">", el("meta").textContent, "</div>",
+      "<div style=\"height:10px\"></div>",
+      "<table>",
+      "<thead>", document.querySelector("thead").innerHTML, "</thead>",
+      "<tbody>", el("rows").innerHTML, "</tbody>",
+      "</table>",
+      "</div>",
+      "</div>",
+      "</body></html>"
+    ];
+    var html = parts.join("");
+    var blob = new Blob([html], {type:"text/html;charset=utf-8"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "migration_status_report.html";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function initSearch(){
+    el("qRuns").addEventListener("input", function(){ applySearch("qRuns","runs"); });
+    el("qModules").addEventListener("input", function(){ applySearch("qModules","modules"); });
+    el("qObjects").addEventListener("input", function(){ applySearch("qObjects","objects"); });
+    el("qTables").addEventListener("input", function(){ applySearch("qTables","tableGroups"); });
+  }
+
+  // EVENTS
+  el("file").addEventListener("change", function(e){
+    clearError();
+
+    if(typeof XLSX === "undefined"){
+      showError("No se encontró XLSX.\nSubí xlsx.full.min.js en la MISMA carpeta que index.html.");
+      return;
+    }
+
+    var file = e.target.files && e.target.files[0];
+    if(!file) return;
+
+    el("status").textContent = "Leyendo: " + file.name + "…";
+
+    file.arrayBuffer().then(function(buf){
+      var wb = XLSX.read(buf, { type:"array" });
+      var wsName = wb.SheetNames[0];
+      var ws = wb.Sheets[wsName];
+      var json = XLSX.utils.sheet_to_json(ws, { defval:"" });
+
+      state.raw = json;
+
+      var types   = uniq(json.map(function(r){ return r[COL.type]; }));
+      var runs    = uniq(json.map(function(r){ return r[COL.runName]; }));
+      var modules = uniq(json.map(function(r){ return r[COL.module]; }));
+      var objects = uniq(json.map(function(r){ return r[COL.object]; }));
+      var tgroups = uniq(json.map(function(r){ return tableGroupName(r[COL.table]); }));
+
+      mkChecklist("types", types, "type");
+      mkChecklist("runs", runs, "run");
+      mkChecklist("modules", modules, "module");
+      mkChecklist("objects", objects, "object");
+      mkChecklist("tableGroups", tgroups, "tgroup");
+
+      enableUI();
+      initSearch();
+      wireUpdates();
+
+      el("status").textContent = "Cargado: " + file.name + " | Filas: " + json.length;
+      renderDashboard();
+    }).catch(function(err){
+      showError("Error leyendo XLSX:\n" + (err && err.message ? err.message : String(err)));
+      el("status").textContent = "Error";
+    });
+  });
+
+  el("apply").addEventListener("click", function(){ renderDashboard(); });
+
+  el("download").addEventListener("click", function(){ downloadHTMLReport(); });
+
+  el("selectAll").addEventListener("click", function(){
+    setAll(true);
+    renderDashboard();
+  });
+
+  el("selectNone").addEventListener("click", function(){
+    setAll(false);
+    renderDashboard();
+  });
+
+})();
+</script>
+</body>
+</html>
