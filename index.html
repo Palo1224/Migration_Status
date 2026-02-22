@@ -3,72 +3,194 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light dark">
   <title>Migration Status Portal</title>
 
   <!-- SIN CDN: este archivo debe estar en la misma carpeta que index.html -->
   <script src="./xlsx.full.min.js"></script>
 
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:#f6f7fb}
-    header{padding:14px 18px;background:#111827;color:#fff;display:flex;gap:10px;align-items:center;justify-content:space-between}
-    header h1{margin:0;font-size:15px;font-weight:800}
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#6b7280;
+      --line:#e5e7eb;
+      --line2:#eef2f7;
+      --shadow:0 1px 2px rgba(0,0,0,.06);
+      --radius:14px;
+
+      --ok-bg:#ecfdf5; --ok-bd:#a7f3d0; --ok-tx:#065f46;
+      --mid-bg:#fffbeb; --mid-bd:#fde68a; --mid-tx:#92400e;
+      --bad-bg:#fef2f2; --bad-bd:#fecaca; --bad-tx:#991b1b;
+
+      --accent:#2563eb;
+      --accent2:#16a34a;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0b1220;
+        --card:#0f172a;
+        --text:#e5e7eb;
+        --muted:#a1a1aa;
+        --line:#1f2937;
+        --line2:#111827;
+        --shadow:0 1px 2px rgba(0,0,0,.35);
+        --ok-bg:rgba(16,185,129,.12); --ok-bd:rgba(16,185,129,.35); --ok-tx:#a7f3d0;
+        --mid-bg:rgba(245,158,11,.12); --mid-bd:rgba(245,158,11,.35); --mid-tx:#fde68a;
+        --bad-bg:rgba(239,68,68,.12); --bad-bd:rgba(239,68,68,.35); --bad-tx:#fecaca;
+      }
+    }
+
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:var(--bg);color:var(--text)}
+    a{color:inherit}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+    header{
+      position:sticky;top:0;z-index:20;
+      padding:14px 18px;background:#111827;color:#fff;
+      display:flex;gap:12px;align-items:center;justify-content:space-between;
+      border-bottom:1px solid rgba(255,255,255,.08)
+    }
+    header h1{margin:0;font-size:15px;font-weight:900;letter-spacing:.2px}
     header .muted{color:#cbd5e1;font-size:12px}
-    main{padding:16px 18px;display:grid;grid-template-columns:420px 1fr;gap:14px}
-    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    header .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    header .chip{
+      font-size:12px;border:1px solid rgba(255,255,255,.16);padding:6px 10px;border-radius:999px;
+      background:rgba(255,255,255,.06)
+    }
+    header select, header button{
+      font:inherit
+    }
+    header select{
+      background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);
+      border-radius:10px;padding:6px 10px;font-size:12px
+    }
+
+    main{padding:16px 18px;display:grid;grid-template-columns:420px 1fr;gap:14px;align-items:start}
+    @media (max-width: 1080px){
+      main{grid-template-columns:1fr}
+      header .right{justify-content:flex-start}
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:12px;
+      box-shadow:var(--shadow)
+    }
+
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .btn{border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;font-weight:800}
-    .btn:disabled{opacity:.5;cursor:not-allowed}
-    .muted{color:#6b7280;font-size:12px}
-    .sep{height:1px;background:#eef2f7;margin:10px 0}
-    .kpis{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:10px}
-    .kpi{border:1px solid #e5e7eb;border-radius:12px;padding:10px}
-    .kpi .v{font-size:22px;font-weight:900}
-    .kpi .l{font-size:12px;color:#6b7280}
+    .btn{
+      border:1px solid var(--line);
+      background:var(--card);
+      color:var(--text);
+      border-radius:12px;
+      padding:8px 10px;
+      cursor:pointer;
+      font-weight:900
+    }
+    .btn.primary{
+      background:var(--accent);
+      border-color:transparent;
+      color:#fff
+    }
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .muted{color:var(--muted);font-size:12px}
+    .sep{height:1px;background:var(--line2);margin:10px 0}
+
+    .kpis{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:10px}
+    @media (max-width: 640px){ .kpis{grid-template-columns:1fr 1fr} }
+
+    .kpi{border:1px solid var(--line);border-radius:14px;padding:10px;min-height:72px}
+    .kpi .v{font-size:22px;font-weight:950;line-height:1.1}
+    .kpi .l{font-size:12px;color:var(--muted);margin-top:6px}
+
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .list{max-height:220px;overflow:auto;border:1px solid #eef2f7;border-radius:10px;padding:8px}
-    .item{display:flex;gap:8px;align-items:center;padding:4px 2px}
-    .item label{cursor:pointer}
+    @media (max-width: 640px){ .grid2{grid-template-columns:1fr} }
+
+    .list{max-height:220px;overflow:auto;border:1px solid var(--line2);border-radius:12px;padding:8px;background:rgba(0,0,0,.02)}
+    @media (prefers-color-scheme: dark){ .list{background:rgba(255,255,255,.02)} }
+
+    .item{display:flex;gap:8px;align-items:center;padding:6px 4px;border-radius:10px}
+    .item:hover{background:rgba(0,0,0,.03)}
+    @media (prefers-color-scheme: dark){ .item:hover{background:rgba(255,255,255,.04)} }
+
     input[type="file"]{width:100%}
-    input[type="text"]{width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
+    input[type="text"]{
+      width:100%;padding:10px 10px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text)
+    }
+    input[type="checkbox"]{transform:translateY(1px)}
     table{width:100%;border-collapse:collapse;font-size:13px}
-    th,td{border-bottom:1px solid #eef2f7;padding:8px;text-align:left;vertical-align:top}
-    th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#374151}
-    .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:900;border:1px solid #e5e7eb}
-    .g{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
-    .y{background:#fffbeb;border-color:#fde68a;color:#92400e}
-    .r{background:#fef2f2;border-color:#fecaca;color:#991b1b}
-    .warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:10px;border-radius:12px;font-size:12px;line-height:1.35}
-    .hint{font-size:12px;color:#374151;background:#f9fafb;border:1px solid #eef2f7;padding:10px;border-radius:12px}
-    code{background:#f3f4f6;padding:1px 6px;border-radius:8px}
+    th,td{border-bottom:1px solid var(--line2);padding:10px 8px;text-align:left;vertical-align:top}
+    th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);position:sticky;top:0;background:var(--card);z-index:5}
+    .pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:950;border:1px solid var(--line)}
+    .g{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--ok-tx)}
+    .y{background:var(--mid-bg);border-color:var(--mid-bd);color:var(--mid-tx)}
+    .r{background:var(--bad-bg);border-color:var(--bad-bd);color:var(--bad-tx)}
+
+    .warn{background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.25);color:var(--text);padding:10px;border-radius:14px;font-size:12px;line-height:1.35}
+    .hint{font-size:12px;color:var(--text);background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.25);padding:10px;border-radius:14px;line-height:1.35}
+    code{background:rgba(148,163,184,.18);padding:1px 6px;border-radius:10px}
     .svgwrap{width:100%;overflow:auto}
-    .err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:12px;font-size:12px;white-space:pre-wrap;display:none}
-    .tiny{font-size:11px;color:#6b7280}
-    .dbg{font-size:12px;color:#374151;background:#f9fafb;border:1px solid #eef2f7;padding:10px;border-radius:12px}
-    .chk{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .chk label{display:flex;gap:6px;align-items:center;font-size:12px;color:#374151}
+    .err{background:var(--bad-bg);border:1px solid var(--bad-bd);color:var(--bad-tx);padding:10px;border-radius:14px;font-size:12px;white-space:pre-wrap;display:none}
+    .tiny{font-size:11px;color:var(--muted)}
+    .dbg{font-size:12px;color:var(--text);background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.25);padding:10px;border-radius:14px}
+    .chk{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .chk label{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text)}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+
+    .tableWrap{overflow:auto;max-height:68vh;border:1px solid var(--line2);border-radius:14px}
+    @media (max-width:1080px){ .tableWrap{max-height:none} }
+
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
   </style>
 </head>
 
 <body>
 <header>
-  <h1>Migration Status Portal</h1>
-  <div class="muted" id="status">Sin archivo</div>
+  <div>
+    <h1>Migration Status Portal</h1>
+    <div class="muted" id="status">Sin archivo</div>
+  </div>
+
+  <div class="right">
+    <span class="chip" id="fileMeta">—</span>
+
+    <label class="sr-only" for="tz">Zona horaria</label>
+    <select id="tz" title="Zona horaria para mostrar horas">
+      <option value="local">Hora local</option>
+      <option value="UTC">UTC</option>
+      <option value="America/Argentina/Buenos_Aires">AR (Buenos Aires)</option>
+      <option value="America/Sao_Paulo">BR (São Paulo)</option>
+      <option value="Europe/Madrid">ES (Madrid)</option>
+    </select>
+
+    <button class="btn" id="reset" disabled title="Limpiar filtros">Reset</button>
+  </div>
 </header>
 
 <main>
   <!-- CONTROLES -->
-  <section class="card">
+  <section class="card" aria-label="Controles">
     <div class="row">
+      <label for="file" class="sr-only">Archivo Excel</label>
       <input id="file" type="file" accept=".xlsx,.xls" />
     </div>
 
     <div class="sep"></div>
 
-    <div class="row">
-      <button class="btn" id="selectAll" disabled>Seleccionar todo</button>
-      <button class="btn" id="selectNone" disabled>Seleccionar nada</button>
-      <button class="btn" id="apply" disabled>Aplicar</button>
-      <button class="btn" id="download" disabled>Descargar HTML</button>
+    <div class="toolbar">
+      <div class="row">
+        <button class="btn" id="selectAll" disabled>Seleccionar todo</button>
+        <button class="btn" id="selectNone" disabled>Seleccionar nada</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="apply" disabled>Aplicar</button>
+        <button class="btn primary" id="download" disabled>Descargar HTML</button>
+      </div>
     </div>
 
     <div class="sep"></div>
@@ -84,7 +206,7 @@
         <input id="qRuns" type="text" placeholder="Buscar run…" />
         <div style="height:6px"></div>
         <div class="list" id="runs"></div>
-        <div class="tiny">La curva se arma usando solo los Run name seleccionados.</div>
+        <div class="tiny">La curva se arma usando solo los <b>Run name</b> seleccionados.</div>
       </div>
     </div>
 
@@ -116,22 +238,23 @@
     <div class="sep"></div>
 
     <div class="hint">
-      <b>Tip:</b> si la curva no se ve, mirá el “Debug curva”.<br/>
-      Filas sin tiempos completos se consideran “en curso” y no se grafican.
+      <b>Importante:</b> este portal mide progreso <b>sobre lo que está en el Excel</b>.
+      Si “falta un objeto” pero no está en el export, el sistema no puede contarlo como pendiente.
+      Para medir “faltantes vs plan”, necesitás un baseline (lista planificada) en el Excel.
     </div>
 
     <div style="height:10px"></div>
-    <div id="errors" class="err"></div>
+    <div id="errors" class="err" role="alert"></div>
   </section>
 
   <!-- DASHBOARD -->
-  <section>
+  <section aria-label="Dashboard">
     <div class="kpis" id="kpis"></div>
 
     <div style="height:10px"></div>
 
     <div class="card">
-      <div style="font-weight:900">Curva de evolución (por Run name)</div>
+      <div style="font-weight:950">Curva de evolución (por Run name)</div>
       <div class="muted" id="curveMeta"></div>
       <div style="height:10px"></div>
       <div class="svgwrap" id="curve"></div>
@@ -141,15 +264,15 @@
 
       <div class="sep"></div>
       <div class="warn">
-        Curva usa <b>End date/time</b> si existe; si no, usa <b>Start + Real runtime</b>.
-        Filas sin tiempo suficiente no se grafican.
+        La curva usa <b>End date/time</b> si existe; si no, usa <b>Start + Real runtime</b>.
+        Filas sin tiempo suficiente no se grafican. Las horas se muestran según la zona elegida arriba.
       </div>
     </div>
 
     <div style="height:10px"></div>
 
     <div class="card">
-      <div style="font-weight:900">Curva por hora (cliente)</div>
+      <div style="font-weight:950">Curva por hora (cliente)</div>
       <div class="muted" id="hourlyMeta"></div>
       <div style="height:10px"></div>
       <div class="svgwrap" id="curveHourly"></div>
@@ -158,25 +281,48 @@
         Esta curva agrupa el avance acumulado por <b>hora</b> (según fin del step).
       </div>
     </div>
+<div style="height:10px"></div>
 
+<div class="card">
+  <div style="font-weight:950">Migration Status GLS (por Módulo)</div>
+  <div class="muted" id="glsMeta"></div>
+  <div style="height:10px"></div>
+
+  <div class="tableWrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Module</th><th>Stage</th><th>%</th>
+        </tr>
+      </thead>
+      <tbody id="glsRows"></tbody>
+    </table>
+  </div>
+
+  <div class="sep"></div>
+  <div class="tiny">
+    Este resumen se calcula con steps/tablas del Excel: % = done_steps / total_steps (por módulo y stage).
+  </div>
+</div>
     <div style="height:10px"></div>
 
     <div class="card">
-      <div style="font-weight:900">Resumen por Objeto (tablas → objeto)</div>
-      <div class="muted" id="meta"></div>
+      <div class="toolbar">
+        <div>
+          <div style="font-weight:950">Resumen por Objeto (tablas → objeto)</div>
+          <div class="muted" id="meta"></div>
+        </div>
 
-      <div style="height:10px"></div>
-
-      <!-- Filtro de status -->
-      <div class="chk">
-        <label><input type="checkbox" id="fOK" checked> OK</label>
-        <label><input type="checkbox" id="fRUN" checked> EN CURSO</label>
-        <label><input type="checkbox" id="fCRIT" checked> CRÍTICO</label>
+        <div class="chk" aria-label="Filtro de estado">
+          <label><input type="checkbox" id="fOK" checked> OK</label>
+          <label><input type="checkbox" id="fRUN" checked> EN CURSO</label>
+          <label><input type="checkbox" id="fCRIT" checked> CRÍTICO</label>
+        </div>
       </div>
 
       <div style="height:10px"></div>
 
-      <div style="overflow:auto">
+      <div class="tableWrap" aria-label="Tabla de resumen">
         <table>
           <thead>
             <tr>
@@ -210,7 +356,12 @@
 
   function el(id){ return document.getElementById(id); }
 
-  var state = { raw: [], last: null };
+  var state = {
+    raw: [],
+    last: null,
+    wired: false,
+    tz: "local"
+  };
 
   function showError(msg){
     var box = el("errors");
@@ -237,7 +388,11 @@
     return out;
   }
 
-  function pct(n){ return String(Math.round(n*100)) + "%"; }
+  function pct(n){
+  if(!isFinite(n)) return "0.0%";
+  var v = Math.floor(n*1000)/10; // 1 decimal, sin redondear hacia arriba
+  return v.toFixed(1) + "%";
+}
 
   function statusPill(p){
     if(p >= 1) return '<span class="pill g">OK</span>';
@@ -323,12 +478,33 @@
 
   // ==== helpers eje X (ticks por hora) ====
   function pad2(n){ return (n<10?"0":"") + n; }
+
+  // Formato de fecha/hora para cliente
+  function fmtLocal(dt){
+    return dt.toLocaleString("es-AR",{hour12:false});
+  }
+  function fmtWithTZ(dt, tz){
+    // tz: "local" | "UTC" | IANA
+    if(tz === "local") return fmtLocal(dt);
+    if(tz === "UTC"){
+      // ISO sin segundos para legibilidad
+      return dt.toISOString().slice(0,16).replace("T"," ");
+    }
+    // IANA timeZone
+    return new Intl.DateTimeFormat("es-AR", {
+      timeZone: tz, year:"numeric", month:"2-digit", day:"2-digit",
+      hour:"2-digit", minute:"2-digit", hour12:false
+    }).format(dt).replace(",", "");
+  }
+
   function fmtTick(dt){
+    // tick solo DD/MM HH:00
     return pad2(dt.getDate()) + "/" + pad2(dt.getMonth()+1) + " " + pad2(dt.getHours()) + ":00";
   }
+
   function hourlyTicks(minT, maxT){
     var HOUR = 3600*1000;
-    var start = Math.ceil(minT / HOUR) * HOUR;
+    var start = Math.floor(minT / HOUR) * HOUR; // arranca exacto en hora
     var out = [];
     for(var t = start; t <= maxT; t += HOUR) out.push(t);
     return out;
@@ -478,14 +654,81 @@
 
     return out;
   }
+function computeGLS(rows){
+  // Agrupa por Module + Stage (EXP/IMP) y calcula done/total (ponderado por steps)
+  var map = {}; // key -> {module, stage, total, done}
+  var order = [];
 
-  function avgPct(arr){
-    if(!arr.length) return 0;
-    var s = 0;
-    for(var i=0;i<arr.length;i++) s += arr[i].pct;
-    return s/arr.length;
+  for(var i=0;i<rows.length;i++){
+    var r = rows[i];
+    var stage = String(r[COL.type]||"").trim().toUpperCase(); // EXP / IMP
+    if(stage !== "EXP" && stage !== "IMP") continue;
+
+    var moduleId = String(r[COL.module]||"").trim();
+    if(!moduleId) continue;
+
+    var key = moduleId + "||" + stage;
+    if(!map[key]){
+      map[key] = { module: moduleId, stage: stage, total:0, done:0 };
+      order.push(key);
+    }
+    map[key].total += 1;
+    if(isDoneRow(r)) map[key].done += 1;
   }
 
+  // Orden: por módulo y dentro EXP luego IMP
+  order.sort(function(a,b){
+    var am = map[a].module, bm = map[b].module;
+    if(am !== bm) return am.localeCompare(bm);
+    return map[a].stage.localeCompare(map[b].stage); // EXP antes que IMP si querés podés customizar
+  });
+
+  return order.map(function(k){
+    var g = map[k];
+    g.pct = g.total ? (g.done/g.total) : 0;
+    return g;
+  });
+}
+
+function stageLabel(stage){
+  return (stage==="EXP") ? "EXPORT" : (stage==="IMP") ? "IMPORT" : stage;
+}
+
+function renderGLS(gls){
+  var byModule = {};
+  for(var i=0;i<gls.length;i++){
+    var m = gls[i].module;
+    if(!byModule[m]) byModule[m]=[];
+    byModule[m].push(gls[i]);
+  }
+
+  var modules = Object.keys(byModule).sort(function(a,b){ return a.localeCompare(b); });
+
+  var html = "";
+  for(var mi=0; mi<modules.length; mi++){
+    var m = modules[mi];
+    var rows = byModule[m];
+
+    // asegurar orden EXPORT / IMPORT
+    rows.sort(function(a,b){
+      return (a.stage==="EXP" ? 0 : 1) - (b.stage==="EXP" ? 0 : 1);
+    });
+
+    for(var r=0;r<rows.length;r++){
+      var row = rows[r];
+      html += "<tr>";
+      if(r===0){
+        html += '<td rowspan="' + rows.length + '"><b>' + m + "</b></td>";
+      }
+      html += "<td>" + stageLabel(row.stage) + "</td>";
+      html += "<td><b>" + pct(row.pct) + "</b> <span class=\"muted\">(" + row.done + "/" + row.total + ")</span></td>";
+      html += "</tr>";
+    }
+  }
+
+  el("glsRows").innerHTML = html || "<tr><td colspan='3' class='muted'>Sin datos</td></tr>";
+  el("glsMeta").textContent = "Módulos: " + modules.length + " | Filas consideradas: " + (state.last ? state.last.filtered.length : 0);
+}
   // ===== status filter (tabla) =====
   function statusFilter(p){
     var ok = el("fOK").checked;
@@ -500,7 +743,7 @@
 
   // ===== curva por run =====
   function buildEvolutionSeries(rows){
-    // Totales del filtro por tipo (incluye filas sin tiempo)
+    // Totales por tipo (incluye filas sin tiempo)
     var totalAll = { EXP:0, IMP:0 };
     for (var i=0;i<rows.length;i++){
       var tp = String(rows[i][COL.type]||"").trim().toUpperCase();
@@ -523,7 +766,7 @@
       }
 
       var start = parseDateTime(r[COL.startDate], r[COL.startTime]);
-      var durS  = parseRuntimeSeconds(r[COL.realRuntime]); // null si vacío; 0 si "00:00:00"
+      var durS  = parseRuntimeSeconds(r[COL.realRuntime]);
       if(start && durS !== null){
         dbg.withStartRuntime += 1;
         events.push({ t:new Date(start.getTime() + durS*1000), type:type, done:isDoneRow(r) });
@@ -565,8 +808,7 @@
     var maxT = series[series.length-1].t.getTime();
     var span = Math.max(1, maxT - minT);
 
-    // + espacio abajo para labels rotados
-    var W = 920, H = 300, padL=44, padR=20, padT=16, padB=70;
+    var W = 980, H = 320, padL=52, padR=20, padT=18, padB=88;
 
     function x(t){ return padL + ((t-minT)/span)*(W-padL-padR); }
     function y(p){ return padT + (1-p)*(H-padT-padB); }
@@ -588,48 +830,50 @@
     var last = series[series.length-1];
     el("curveMeta").textContent =
       "Runs: " + runsLabel +
-      " | Desde " + series[0].t.toLocaleString("es-AR",{hour12:false}) +
-      " hasta " + last.t.toLocaleString("es-AR",{hour12:false}) +
+      " | Desde " + fmtWithTZ(series[0].t, state.tz) +
+      " hasta " + fmtWithTZ(last.t, state.tz) +
       " | Total " + pct(last.totalPct) +
       " | EXP " + pct(last.expPct) +
       " | IMP " + pct(last.impPct);
 
+    // grid Y
     var grid = "";
     var ps = [0,0.25,0.5,0.75,1];
     for(var k=0;k<ps.length;k++){
       var p = ps[k];
       var yy = y(p);
-      grid += '<line x1="' + padL + '" y1="' + yy + '" x2="' + (W-padR) + '" y2="' + yy + '" stroke="#eef2f7"/>';
-      grid += '<text x="8" y="' + (yy+4) + '" font-size="11" fill="#6b7280">' + Math.round(p*100) + "%</text>";
+      grid += '<line x1="' + padL + '" y1="' + yy + '" x2="' + (W-padR) + '" y2="' + yy + '" stroke="rgba(148,163,184,.25)"/>';
+      grid += '<text x="10" y="' + (yy+4) + '" font-size="11" fill="rgba(148,163,184,.95)">' + Math.round(p*100) + "%</text>";
     }
 
-    // === eje X: ticks cada 1 hora con fecha+hora ===
+    // ticks X por hora (legibles)
     var xgrid = "";
     var ticks = hourlyTicks(minT, maxT);
     for(var ti=0; ti<ticks.length; ti++){
       var tx = x(ticks[ti]);
-      xgrid += '<line x1="' + tx + '" y1="' + (H-padB) + '" x2="' + tx + '" y2="' + (H-padB+6) + '" stroke="#e5e7eb"/>';
+      xgrid += '<line x1="' + tx + '" y1="' + (H-padB) + '" x2="' + tx + '" y2="' + (H-padB+6) + '" stroke="rgba(148,163,184,.35)"/>';
       var lbl = fmtTick(new Date(ticks[ti]));
-      xgrid += '<text x="' + tx + '" y="' + (H-10) + '" font-size="10" fill="#6b7280" text-anchor="end" transform="rotate(-45 ' + tx + ' ' + (H-10) + ')">' + lbl + '</text>';
+      xgrid += '<text x="' + tx + '" y="' + (H-14) + '" font-size="10" fill="rgba(148,163,184,.95)" text-anchor="end" transform="rotate(-45 ' + tx + ' ' + (H-14) + ')">' + lbl + '</text>';
     }
 
     var svg = '';
-    svg += '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg">';
-    svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="white"/>';
-    svg += grid;
-    svg += xgrid;
+    svg += '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Curva de evolución">';
+    svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="transparent"/>';
+    svg += grid + xgrid;
 
-    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
-    svg += '<line x1="' + padL + '" y1="' + (H-padB) + '" x2="' + (W-padR) + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
+    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H-padB) + '" stroke="rgba(148,163,184,.35)"/>';
+    svg += '<line x1="' + padL + '" y1="' + (H-padB) + '" x2="' + (W-padR) + '" y2="' + (H-padB) + '" stroke="rgba(148,163,184,.35)"/>';
 
-    svg += '<path d="' + pathFor("totalPct") + '" fill="none" stroke="#111827" stroke-width="2.5"/>';
-    svg += '<path d="' + pathFor("expPct") + '" fill="none" stroke="#2563eb" stroke-width="2"/>';
-    svg += '<path d="' + pathFor("impPct") + '" fill="none" stroke="#16a34a" stroke-width="2"/>';
+    // paths
+    svg += '<path d="' + pathFor("totalPct") + '" fill="none" stroke="currentColor" stroke-width="2.8"/>';
+    svg += '<path d="' + pathFor("expPct") + '" fill="none" stroke="' + getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() + '" stroke-width="2.2"/>';
+    svg += '<path d="' + pathFor("impPct") + '" fill="none" stroke="' + getComputedStyle(document.documentElement).getPropertyValue("--accent2").trim() + '" stroke-width="2.2"/>';
 
-    svg += '<g font-size="12" fill="#111827">';
-    svg += '<circle cx="' + (padL+10) + '" cy="' + (padT+8) + '" r="4" fill="#111827"/><text x="' + (padL+20) + '" y="' + (padT+12) + '">Total</text>';
-    svg += '<circle cx="' + (padL+80) + '" cy="' + (padT+8) + '" r="4" fill="#2563eb"/><text x="' + (padL+90) + '" y="' + (padT+12) + '">Export</text>';
-    svg += '<circle cx="' + (padL+160) + '" cy="' + (padT+8) + '" r="4" fill="#16a34a"/><text x="' + (padL+170) + '" y="' + (padT+12) + '">Import</text>';
+    // legend
+    svg += '<g font-size="12" fill="currentColor">';
+    svg += '<circle cx="' + (padL+10) + '" cy="' + (padT+10) + '" r="4" fill="currentColor"/><text x="' + (padL+20) + '" y="' + (padT+14) + '">Total</text>';
+    svg += '<circle cx="' + (padL+86) + '" cy="' + (padT+10) + '" r="4" fill="' + getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() + '"/><text x="' + (padL+96) + '" y="' + (padT+14) + '">Export</text>';
+    svg += '<circle cx="' + (padL+168) + '" cy="' + (padT+10) + '" r="4" fill="' + getComputedStyle(document.documentElement).getPropertyValue("--accent2").trim() + '"/><text x="' + (padL+178) + '" y="' + (padT+14) + '">Import</text>';
     svg += '</g>';
 
     svg += "</svg>";
@@ -660,16 +904,14 @@
 
     events.sort(function(a,b){ return a.t - b.t; });
 
-    // bucket por hora (Date redondeada a la hora)
-    var buckets = {}; // key(ms) -> doneAcc
+    var buckets = {};
     var doneAcc = 0;
 
     for(var j=0;j<events.length;j++){
       if(events[j].done) doneAcc++;
-
       var t = events[j].t;
       var hour = new Date(t.getFullYear(), t.getMonth(), t.getDate(), t.getHours(), 0, 0, 0).getTime();
-      buckets[hour] = doneAcc; // acumulado al cierre de esa hora
+      buckets[hour] = doneAcc;
     }
 
     var keys = Object.keys(buckets).map(function(k){ return Number(k); }).sort(function(a,b){ return a-b; });
@@ -698,15 +940,12 @@
       "Horas: " + series.length +
       " | Eventos usados: " + h.eventsUsed +
       " | Total pasos (filas filtradas): " + h.total +
-      " | Desde " + h.minT.toLocaleString("es-AR",{hour12:false}) +
-      " hasta " + h.maxT.toLocaleString("es-AR",{hour12:false}) +
+      " | Desde " + fmtWithTZ(h.minT, state.tz) +
+      " hasta " + fmtWithTZ(h.maxT, state.tz) +
       " | Último " + pct(series[series.length-1].pct);
 
-    // + espacio abajo para labels rotados
-    var W = 920, H = 300, padL=44, padR=20, padT=16, padB=70;
+    var W = 980, H = 320, padL=52, padR=20, padT=18, padB=88;
 
-    // mapeo por índice (para la línea)
-    function x(i){ return padL + (series.length===1 ? 0 : (i/(series.length-1)))*(W-padL-padR); }
     function y(p){ return padT + (1-p)*(H-padT-padB); }
 
     var grid = "";
@@ -714,41 +953,40 @@
     for(var k=0;k<ps.length;k++){
       var p = ps[k];
       var yy = y(p);
-      grid += '<line x1="' + padL + '" y1="' + yy + '" x2="' + (W-padR) + '" y2="' + yy + '" stroke="#eef2f7"/>';
-      grid += '<text x="8" y="' + (yy+4) + '" font-size="11" fill="#6b7280">' + Math.round(p*100) + "%</text>";
+      grid += '<line x1="' + padL + '" y1="' + yy + '" x2="' + (W-padR) + '" y2="' + yy + '" stroke="rgba(148,163,184,.25)"/>';
+      grid += '<text x="10" y="' + (yy+4) + '" font-size="11" fill="rgba(148,163,184,.95)">' + Math.round(p*100) + "%</text>";
     }
 
-    // === eje X: ticks cada 1 hora con fecha+hora (por tiempo real) ===
-    var xgrid = "";
     var minT = series[0].t.getTime();
     var maxT = series[series.length-1].t.getTime();
     var span = Math.max(1, maxT - minT);
     function xt(t){ return padL + ((t-minT)/span)*(W-padL-padR); }
 
+    var xgrid = "";
     var ticks = hourlyTicks(minT, maxT);
     for(var ti=0; ti<ticks.length; ti++){
       var tx = xt(ticks[ti]);
-      xgrid += '<line x1="' + tx + '" y1="' + (H-padB) + '" x2="' + tx + '" y2="' + (H-padB+6) + '" stroke="#e5e7eb"/>';
+      xgrid += '<line x1="' + tx + '" y1="' + (H-padB) + '" x2="' + tx + '" y2="' + (H-padB+6) + '" stroke="rgba(148,163,184,.35)"/>';
       var lbl = fmtTick(new Date(ticks[ti]));
-      xgrid += '<text x="' + tx + '" y="' + (H-10) + '" font-size="10" fill="#6b7280" text-anchor="end" transform="rotate(-45 ' + tx + ' ' + (H-10) + ')">' + lbl + '</text>';
+      xgrid += '<text x="' + tx + '" y="' + (H-14) + '" font-size="10" fill="rgba(148,163,184,.95)" text-anchor="end" transform="rotate(-45 ' + tx + ' ' + (H-14) + ')">' + lbl + '</text>';
     }
 
+    // línea (por tiempo real)
     var d = "";
     for(var i=0;i<series.length;i++){
-      var px = x(i);
+      var px = xt(series[i].t.getTime());
       var py = y(series[i].pct);
       d += (i===0 ? ("M " + px + " " + py) : (" L " + px + " " + py));
     }
 
     var svg = '';
-    svg += '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg">';
-    svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="white"/>';
-    svg += grid;
-    svg += xgrid;
+    svg += '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Curva por hora">';
+    svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="transparent"/>';
+    svg += grid + xgrid;
 
-    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
-    svg += '<line x1="' + padL + '" y1="' + (H-padB) + '" x2="' + (W-padR) + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
-    svg += '<path d="' + d + '" fill="none" stroke="#111827" stroke-width="2.5"/>';
+    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H-padB) + '" stroke="rgba(148,163,184,.35)"/>';
+    svg += '<line x1="' + padL + '" y1="' + (H-padB) + '" x2="' + (W-padR) + '" y2="' + (H-padB) + '" stroke="rgba(148,163,184,.35)"/>';
+    svg += '<path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2.8"/>';
     svg += "</svg>";
 
     el("curveHourly").innerHTML = svg;
@@ -758,33 +996,41 @@
   function renderDashboard(){
     var filtered = filterRows();
     var sum = computeSummary(filtered);
-
-    // KPIs por objeto (promedio)
-    var exp = [], imp = [];
-    for(var i=0;i<sum.length;i++){
-      if(String(sum[i].type).toUpperCase() === "EXP") exp.push(sum[i]);
-      if(String(sum[i].type).toUpperCase() === "IMP") imp.push(sum[i]);
+    // test (Module x Stage)
+    var test = computeGLS(filtered);
+    renderGLS(test);
+    // === KPIs PONDERADOS (steps/tablas), NO promedio por objeto ===
+    var expTotal=0, expDone=0, impTotal=0, impDone=0;
+    for (var i=0;i<filtered.length;i++){
+      var tp = String(filtered[i][COL.type]||"").trim().toUpperCase();
+      if(tp!=="EXP" && tp!=="IMP") continue;
+      var done = isDoneRow(filtered[i]);
+      if(tp==="EXP"){ expTotal++; if(done) expDone++; }
+      if(tp==="IMP"){ impTotal++; if(done) impDone++; }
     }
 
-    var expPct = avgPct(exp);
-    var impPct = avgPct(imp);
-    var denom = (exp.length && imp.length) ? 2 : ((exp.length || imp.length) ? 1 : 1);
-    var totalPct = (expPct + impPct)/denom;
+    var totalSteps = expTotal + impTotal;
+    var doneSteps  = expDone + impDone;
 
+    var totalPct = totalSteps ? (doneSteps/totalSteps) : 0;
+    var expPct = expTotal ? (expDone/expTotal) : 0;
+    var impPct = impTotal ? (impDone/impTotal) : 0;
+
+    // críticos por objeto
     var critical = 0;
     for(var j=0;j<sum.length;j++){
       if(sum[j].pct < 0.5) critical += 1;
     }
 
     el("kpis").innerHTML =
-      '<div class="kpi"><div class="v">' + pct(totalPct) + '</div><div class="l">Avance total</div></div>' +
-      '<div class="kpi"><div class="v">' + pct(expPct) + '</div><div class="l">Export</div></div>' +
-      '<div class="kpi"><div class="v">' + pct(impPct) + '</div><div class="l">Import</div></div>' +
+      '<div class="kpi"><div class="v">' + pct(totalPct) + '</div><div class="l">Avance total (ponderado por steps)</div></div>' +
+      '<div class="kpi"><div class="v">' + pct(expPct) + '</div><div class="l">Export (steps: ' + expDone + '/' + expTotal + ')</div></div>' +
+      '<div class="kpi"><div class="v">' + pct(impPct) + '</div><div class="l">Import (steps: ' + impDone + '/' + impTotal + ')</div></div>' +
       '<div class="kpi"><div class="v">' + critical + '</div><div class="l">Objetos críticos (&lt;50%)</div></div>';
 
     el("meta").textContent = "Filas incluidas: " + filtered.length + " | Objetos (Type+Run+Module+Object): " + sum.length;
 
-    // Tabla con filtro status
+    // === TABLA (al desactivar módulo/objeto, desaparece porque sum se recalcula con filtered) ===
     var rowsHtml = "";
     for(var r=0;r<sum.length;r++){
       if(!statusFilter(sum[r].pct)) continue;
@@ -827,53 +1073,56 @@
     el("selectNone").disabled = false;
     el("apply").disabled = false;
     el("download").disabled = false;
+    el("reset").disabled = false;
   }
 
-  function wireUpdates(){
+  function wireUpdatesOnce(){
+    if(state.wired) return;
+
     function onChange(){ renderDashboard(); }
 
-    var groups = ["type","run","module","object","tgroup"];
-    for(var gi=0;gi<groups.length;gi++){
-      (function(g){
-        var inputs = document.querySelectorAll('input[type="checkbox"][data-group="' + g + '"]');
-        for(var i=0;i<inputs.length;i++) inputs[i].addEventListener("change", onChange);
-      })(groups[gi]);
-    }
+    // delegación: escucha cambios de cualquier checkbox de filtros
+    document.addEventListener("change", function(ev){
+      var t = ev.target;
+      if(!t) return;
+      if(t.matches('input[type="checkbox"][data-group]')) onChange();
+      if(t.id === "fOK" || t.id === "fRUN" || t.id === "fCRIT") onChange();
+    });
 
-    el("fOK").addEventListener("change", onChange);
-    el("fRUN").addEventListener("change", onChange);
-    el("fCRIT").addEventListener("change", onChange);
+    state.wired = true;
   }
 
   function downloadHTMLReport(){
+    // Genera un reporte “congelado” con lo que el usuario está viendo
     var parts = [
-      "<!doctype html><html><head><meta charset=\"utf-8\"/>",
+      "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"/>",
+      "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>",
       "<title>Migration Status Report</title>",
       "<style>", document.querySelector("style").innerHTML, "</style>",
       "</head><body>",
       "<header style=\"padding:14px 18px;background:#111827;color:#fff;display:flex;gap:10px;align-items:center;justify-content:space-between\">",
-      "<h1 style=\"margin:0;font-size:15px;font-weight:800\">Migration Status Report</h1>",
-      "<div style=\"color:#cbd5e1;font-size:12px\">Generado: ", new Date().toLocaleString("es-AR",{hour12:false}), "</div>",
+      "<div><div style=\"font-weight:900\">Migration Status Report</div>",
+      "<div style=\"color:#cbd5e1;font-size:12px\">Generado: ", new Date().toLocaleString("es-AR",{hour12:false}), " | TZ: ", (state.tz||"local"), "</div></div>",
       "</header>",
-      "<div style=\"padding:16px 18px;background:#f6f7fb\">",
+      "<div style=\"padding:16px 18px;background:var(--bg)\">",
       "<div class=\"kpis\">", el("kpis").innerHTML, "</div>",
       "<div style=\"height:10px\"></div>",
       "<div class=\"card\">",
-      "<div style=\"font-weight:900\">Curva de evolución</div>",
+      "<div style=\"font-weight:950\">Curva de evolución</div>",
       "<div class=\"muted\">", el("curveMeta").textContent, "</div>",
       "<div style=\"height:10px\"></div>",
       "<div class=\"svgwrap\">", el("curve").innerHTML, "</div>",
       "</div>",
       "<div style=\"height:10px\"></div>",
       "<div class=\"card\">",
-      "<div style=\"font-weight:900\">Curva por hora</div>",
+      "<div style=\"font-weight:950\">Curva por hora</div>",
       "<div class=\"muted\">", el("hourlyMeta").textContent, "</div>",
       "<div style=\"height:10px\"></div>",
       "<div class=\"svgwrap\">", el("curveHourly").innerHTML, "</div>",
       "</div>",
       "<div style=\"height:10px\"></div>",
       "<div class=\"card\">",
-      "<div style=\"font-weight:900\">Resumen por Objeto</div>",
+      "<div style=\"font-weight:950\">Resumen por Objeto</div>",
       "<div class=\"muted\">", el("meta").textContent, "</div>",
       "<div style=\"height:10px\"></div>",
       "<table>",
@@ -894,7 +1143,32 @@
     URL.revokeObjectURL(a.href);
   }
 
+  function resetFilters(){
+    // vuelve a marcar todos los checks y limpia búsquedas
+    setAll(true);
+
+    el("qRuns").value = "";
+    el("qModules").value = "";
+    el("qObjects").value = "";
+    el("qTables").value = "";
+    applySearch("qRuns","runs");
+    applySearch("qModules","modules");
+    applySearch("qObjects","objects");
+    applySearch("qTables","tableGroups");
+
+    el("fOK").checked = true;
+    el("fRUN").checked = true;
+    el("fCRIT").checked = true;
+
+    renderDashboard();
+  }
+
   // ======= EVENTS =======
+  el("tz").addEventListener("change", function(){
+    state.tz = el("tz").value;
+    if(state.raw && state.raw.length) renderDashboard();
+  });
+
   el("file").addEventListener("change", function(e){
     clearError();
 
@@ -912,9 +1186,12 @@
       var wb = XLSX.read(buf, { type:"array" });
       var wsName = wb.SheetNames[0];
       var ws = wb.Sheets[wsName];
+
+      // defval:"" para no traer undefined
       var json = XLSX.utils.sheet_to_json(ws, { defval:"" });
 
       state.raw = json;
+      state.last = null;
 
       var types   = uniq(json.map(function(r){ return r[COL.type]; }));
       var runs    = uniq(json.map(function(r){ return r[COL.runName]; }));
@@ -929,6 +1206,7 @@
       mkChecklist("tableGroups", tgroups, "tgroup");
 
       enableUI();
+      wireUpdatesOnce();
 
       el("qRuns").value = "";
       el("qModules").value = "";
@@ -940,19 +1218,18 @@
       applySearch("qObjects","objects");
       applySearch("qTables","tableGroups");
 
-      wireUpdates();
-
       el("status").textContent = "Cargado: " + file.name + " | Filas: " + json.length;
+      el("fileMeta").textContent = "Sheet: " + wsName + " · Filas: " + json.length;
 
       renderDashboard();
     }).catch(function(err){
       showError("Error leyendo XLSX:\n" + (err && err.message ? err.message : String(err)));
       el("status").textContent = "Error";
+      el("fileMeta").textContent = "—";
     });
   });
 
   el("apply").addEventListener("click", function(){ renderDashboard(); });
-
   el("download").addEventListener("click", function(){ downloadHTMLReport(); });
 
   el("selectAll").addEventListener("click", function(){
@@ -964,6 +1241,8 @@
     setAll(false);
     renderDashboard();
   });
+
+  el("reset").addEventListener("click", function(){ resetFilters(); });
 
   el("qRuns").addEventListener("input", function(){ applySearch("qRuns","runs"); });
   el("qModules").addEventListener("input", function(){ applySearch("qModules","modules"); });
