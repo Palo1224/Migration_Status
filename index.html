@@ -5,9 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Migration Status Portal</title>
 
-  <!-- SheetJS (XLSX) + Chart.js (curvas) -->
+  <!-- XLSX reader -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <style>
     :root{
@@ -17,52 +16,29 @@
       --text:#101828;
       --muted:#667085;
       --shadow: 0 12px 30px rgba(16,24,40,.08);
+      --radius:16px;
 
       --ok:#12b76a;
       --warn:#f79009;
       --bad:#f04438;
 
-      --blue:#2563eb;
       --chip:#f2f4f7;
-      --chip2:#eef2ff;
-      --radius:16px;
-
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
     }
     *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family:var(--sans);
-      background:var(--bg);
-      color:var(--text);
-    }
+    body{ margin:0; font-family:var(--sans); background:var(--bg); color:var(--text); }
+
     header{
       padding:18px 20px 10px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:14px;
+      display:flex; align-items:center; justify-content:space-between; gap:14px;
     }
-    header h1{
-      font-size:16px;
-      margin:0;
-      display:flex;
-      align-items:center;
-      gap:10px;
+    header h1{ font-size:16px; margin:0; display:flex; align-items:center; gap:10px; }
+    header .badge{
+      font-size:12px; padding:4px 10px; border-radius:999px;
+      background:var(--chip); border:1px solid var(--border); color:var(--muted);
     }
-    header h1 .badge{
-      font-size:12px;
-      padding:4px 10px;
-      border-radius:999px;
-      background:var(--chip);
-      border:1px solid var(--border);
-      color:var(--muted);
-    }
-    header .right{
-      font-size:12px;
-      color:var(--muted);
-    }
+    header .right{ font-size:12px; color:var(--muted); }
 
     .layout{
       display:grid;
@@ -72,32 +48,18 @@
       max-width: 1500px;
       margin: 0 auto;
     }
-    @media (max-width: 1100px){
-      .layout{ grid-template-columns: 1fr; }
-    }
+    @media (max-width: 1100px){ .layout{ grid-template-columns: 1fr; } }
 
     .card{
       background:var(--card);
       border:1px solid var(--border);
       border-radius:var(--radius);
       box-shadow:var(--shadow);
+      overflow:hidden;
     }
-    .card h2{
-      font-size:13px;
-      margin:0;
-      padding:14px 14px 10px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      border-bottom:1px solid var(--border);
-    }
-    .card h2 small{ color:var(--muted); font-weight:500; }
 
     /* Sidebar */
-    .sidebar{
-      padding:12px;
-    }
+    .sidebar{ padding:12px; }
     .section{
       border:1px solid var(--border);
       border-radius:14px;
@@ -105,143 +67,145 @@
       margin-bottom:12px;
       background:#fff;
     }
-    .row{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap:wrap;
-    }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
     .btn{
-      cursor:pointer;
-      border:1px solid var(--border);
-      background:#fff;
-      padding:10px 12px;
-      border-radius:12px;
-      font-size:13px;
+      cursor:pointer; border:1px solid var(--border); background:#fff;
+      padding:10px 12px; border-radius:12px; font-size:13px;
       transition: transform .04s ease, background .15s ease;
     }
     .btn:active{ transform: translateY(1px); }
-    .btn.primary{
-      background: var(--blue);
-      color:#fff;
-      border-color: rgba(37,99,235,.4);
-    }
-    .btn.soft{
-      background: var(--chip2);
-      border-color: rgba(37,99,235,.15);
-      color: #1d4ed8;
-    }
+    .btn.primary{ background:#2563eb; color:#fff; border-color: rgba(37,99,235,.4); }
+    .btn.soft{ background:#eef2ff; border-color: rgba(37,99,235,.15); color:#1d4ed8; }
+    .hint{ font-size:12px; color:var(--muted); line-height:1.35; }
 
-    .field{
-      width:100%;
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      margin-top:10px;
-    }
+    .field{ width:100%; display:flex; flex-direction:column; gap:6px; margin-top:10px; }
     .label{ font-size:12px; color:var(--muted); }
     input[type="text"]{
-      width:100%;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      outline:none;
-      font-size:13px;
+      width:100%; padding:10px 12px; border-radius:12px;
+      border:1px solid var(--border); outline:none; font-size:13px;
     }
 
     .checklist{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      max-height: 140px;
-      overflow:auto;
+      display:flex; flex-direction:column; gap:6px;
+      max-height: 160px; overflow:auto;
       padding:6px 4px;
     }
     .checkitem{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      font-size:13px;
-      color:#111827;
-      padding:6px 8px;
-      border-radius:10px;
+      display:flex; gap:8px; align-items:center;
+      font-size:13px; color:#111827;
+      padding:6px 8px; border-radius:10px;
     }
     .checkitem:hover{ background:#f8fafc; }
-    .checkitem .count{
-      margin-left:auto;
-      font-size:12px;
-      color:var(--muted);
-      font-family:var(--mono);
-    }
-
-    .hint{
-      font-size:12px;
-      color:var(--muted);
-      line-height:1.35;
-    }
+    .checkitem .count{ margin-left:auto; font-size:12px; color:var(--muted); font-family:var(--mono); }
 
     /* Main */
-    .main{
-      display:flex;
-      flex-direction:column;
-      gap:14px;
+    .mainHead{
+      padding:14px 14px 10px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      border-bottom:1px solid var(--border);
     }
-    .content{
-      padding: 12px;
-    }
-    .grid2{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:14px;
-    }
-    .chartBox{
-      padding: 12px;
-    }
-    canvas{ width:100% !important; height:240px !important; }
+    .mainHead h2{ margin:0; font-size:13px; }
+    .mainHead small{ color:var(--muted); font-weight:500; }
 
     .pillRow{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap:wrap;
-      padding: 10px 12px;
-      border-top:1px solid var(--border);
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      padding: 10px 14px;
+      border-bottom:1px solid var(--border);
       background:#fcfcfd;
-      border-bottom-left-radius: var(--radius);
-      border-bottom-right-radius: var(--radius);
     }
     .pill{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      padding:7px 10px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background:var(--chip);
-      font-size:12px;
-      color:var(--muted);
+      display:flex; gap:8px; align-items:center;
+      padding:7px 10px; border-radius:999px; border:1px solid var(--border);
+      background:var(--chip); font-size:12px; color:var(--muted);
     }
     .dot{ width:8px; height:8px; border-radius:999px; background:#98a2b3; }
     .dot.ok{ background:var(--ok); }
     .dot.warn{ background:var(--warn); }
     .dot.bad{ background:var(--bad); }
 
-    /* Tables */
+    /* Tree */
+    .treeWrap{ padding:12px; }
+    details{
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:#fff;
+      margin:10px 0;
+      overflow:hidden;
+    }
+    summary{
+      list-style:none;
+      cursor:pointer;
+      padding:10px 12px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      background:#fff;
+    }
+    summary::-webkit-details-marker{ display:none; }
+    .sumLeft{ display:flex; align-items:center; gap:10px; min-width:0; }
+    .caret{
+      width: 9px; height: 9px;
+      border-right:2px solid #98a2b3;
+      border-bottom:2px solid #98a2b3;
+      transform: rotate(-45deg);
+    }
+    details[open] .caret{ transform: rotate(45deg); }
+    .nodeTitle{
+      font-size:13px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 520px;
+    }
+    .meta{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+    .pct{
+      font-family:var(--mono);
+      font-size:12px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:var(--chip);
+      min-width:78px;
+      text-align:right;
+      color:#344054;
+    }
+    .pct.ok{ border-color: rgba(18,183,106,.25); background: rgba(18,183,106,.06); }
+    .pct.warn{ border-color: rgba(247,144,9,.25); background: rgba(247,144,9,.06); }
+    .pct.bad{ border-color: rgba(240,68,56,.25); background: rgba(240,68,56,.06); }
+
+    .children{
+      padding: 10px 12px 12px 18px;
+      border-top:1px solid var(--border);
+      background:#fcfcfd;
+    }
+    .childRow{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      padding:8px 10px;
+      border:1px solid #eef2f7;
+      border-radius:12px;
+      background:#fff;
+      margin:8px 0;
+    }
+    .chip{
+      font-size:11px; padding:5px 8px; border-radius:999px;
+      border:1px solid var(--border); background:var(--chip); color:var(--muted);
+      flex-shrink:0;
+    }
+    .mono{ font-family:var(--mono); }
+
+    /* Table */
     .tableWrap{
       overflow:auto;
-      border-radius: 14px;
-      border:1px solid var(--border);
+      border-top:1px solid var(--border);
     }
     table{
       width:100%;
       border-collapse: collapse;
-      min-width: 980px;
+      min-width: 1050px;
       font-size:12.5px;
     }
     thead th{
-      position: sticky;
-      top:0;
-      z-index:2;
+      position: sticky; top:0; z-index:2;
       background:#fff;
       text-align:left;
       padding:10px 10px;
@@ -255,20 +219,16 @@
       border-bottom:1px solid #f0f2f6;
       white-space:nowrap;
       color:#101828;
+      vertical-align:middle;
     }
     tbody tr:hover{ background:#f8fafc; }
-    .mono{ font-family:var(--mono); }
     .right{ text-align:right; }
+
     .statusTag{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 10px;
-      border-radius:999px;
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
       border:1px solid var(--border);
-      background:#fff;
-      font-size:12px;
-      color:#344054;
+      background:#fff; font-size:12px; color:#344054;
     }
     .statusTag .sDot{ width:8px; height:8px; border-radius:999px; background:#98a2b3; }
     .statusTag.ok{ border-color: rgba(18,183,106,.25); background: rgba(18,183,106,.06); }
@@ -279,33 +239,20 @@
     .statusTag.bad .sDot{ background: var(--bad); }
 
     .progressBar{
-      width: 120px;
-      height: 8px;
-      border-radius:999px;
+      width: 120px; height: 8px; border-radius:999px;
       border:1px solid var(--border);
       background:#f2f4f7;
-      overflow:hidden;
-      display:inline-block;
-      vertical-align:middle;
-      margin-right:8px;
+      overflow:hidden; display:inline-block;
+      vertical-align:middle; margin-right:8px;
     }
     .progressBar > i{
-      display:block;
-      height:100%;
+      display:block; height:100%;
       width:0%;
       background: linear-gradient(90deg, #60a5fa, #12b76a);
     }
-
-    .topSearch{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:space-between;
-      padding: 12px;
-    }
-    .topSearch .field{ margin:0; max-width: 420px; }
   </style>
 </head>
+
 <body>
 <header>
   <h1>
@@ -313,7 +260,7 @@
     <span class="badge" id="fileBadge">Sin archivo</span>
   </h1>
   <div class="right">
-    Persistencia: <b>Local</b> + Export/Import JSON &nbsp;·&nbsp; Tip: <span class="mono">Ctrl + F</span> en la tabla
+    Folder → Run → Object → Tables · Persistencia local · Export/Import JSON
   </div>
 </header>
 
@@ -329,835 +276,595 @@
       <div class="row" style="margin-top:10px;">
         <button class="btn soft" id="selectAllBtn">Seleccionar todo</button>
         <button class="btn soft" id="selectNoneBtn">Seleccionar nada</button>
-        <button class="btn" id="downloadHtmlBtn">Descargar HTML (portal)</button>
       </div>
 
       <div class="row" style="margin-top:10px;">
-        <button class="btn" id="saveProfileBtn">Guardar perfil</button>
-        <button class="btn" id="loadProfileBtn">Cargar perfil</button>
-        <button class="btn" id="exportLogBtn">Export log</button>
-        <button class="btn" id="clearLogBtn">Limpiar log</button>
+        <button class="btn" id="exportJsonBtn">Export JSON</button>
+        <button class="btn" id="importJsonBtn">Import JSON</button>
+        <button class="btn" id="clearBtn">Limpiar</button>
       </div>
 
       <div class="hint" style="margin-top:10px;">
-        Soporta <b>XLSX</b> (export) o <b>JSON</b>. Si el XLSX tiene encabezados raros, igual intenta mapear.
+        Cargá tu <b>XLSX</b> exportado o un <b>JSON</b> previamente exportado desde este portal.
+        El % de Object se calcula agregando sus tablas (ponderado por <span class="mono">#records</span>).
       </div>
     </div>
 
-    <!-- Filters -->
     <div class="section">
       <div class="field">
-        <div class="label">Type</div>
-        <div class="checklist" id="typeList"></div>
+        <div class="label">Filtros (checkbox)</div>
+        <div class="hint">Estos filtros afectan el árbol y la tabla.</div>
       </div>
 
       <div class="field">
-        <div class="label">Run name</div>
+        <div class="label">Folder</div>
+        <input type="text" id="folderSearch" placeholder="Buscar folder..." />
+        <div class="checklist" id="folderList"></div>
+      </div>
+
+      <div class="field">
+        <div class="label">Run</div>
         <input type="text" id="runSearch" placeholder="Buscar run..." />
         <div class="checklist" id="runList"></div>
       </div>
 
       <div class="field">
-        <div class="label">Module ID</div>
-        <input type="text" id="moduleSearch" placeholder="Buscar módulo..." />
-        <div class="checklist" id="moduleList"></div>
+        <div class="label">Type (EXP/IMP)</div>
+        <div class="checklist" id="typeList"></div>
       </div>
 
       <div class="field">
-        <div class="label">Data object</div>
-        <input type="text" id="objectSearch" placeholder="Buscar objeto..." />
-        <div class="checklist" id="objectList"></div>
-      </div>
-
-      <div class="field">
-        <div class="label">Table Groups</div>
-        <input type="text" id="tableGroupSearch" placeholder="Buscar grupo... ej: BUT; /SNP/; *" />
-        <div class="checklist" id="tableGroupList"></div>
-      </div>
-
-      <div class="hint" style="margin-top:8px;">
-        Curvas: usa <b>End date/time</b> o <b>Start + Real runtime</b>. Filas sin tiempo suficiente no se grafican.<br/>
-        %: muestra 1 decimal y no redondea hacia arriba (evita “100% falso”).
+        <div class="label">Buscar (global)</div>
+        <input type="text" id="globalSearch" placeholder="Buscar: object, module, table, block..." />
       </div>
     </div>
   </aside>
 
   <!-- MAIN -->
-  <main class="main">
-    <!-- Charts -->
-    <section class="card">
-      <h2>
-        <span>Curva de evolución (por Run name)</span>
-        <small id="curveMeta">—</small>
-      </h2>
-      <div class="chartBox">
-        <canvas id="chartRun"></canvas>
-      </div>
-    </section>
+  <main class="card">
+    <div class="mainHead">
+      <h2>Árbol de status</h2>
+      <small id="metaText">—</small>
+    </div>
 
-    <section class="card">
-      <h2>
-        <span>Curva por hora (cliente)</span>
-        <small id="hourMeta">Agrupa avance acumulado por hora (según fin del step)</small>
-      </h2>
-      <div class="chartBox">
-        <canvas id="chartHour"></canvas>
-      </div>
-    </section>
+    <div class="pillRow">
+      <span class="pill" id="pillCounts">—</span>
+      <span class="pill"><span class="dot ok"></span> OK (&gt;80%)</span>
+      <span class="pill"><span class="dot warn"></span> EN CURSO (50–80%)</span>
+      <span class="pill"><span class="dot bad"></span> CRÍTICO (&lt;50%)</span>
+    </div>
 
-    <!-- Module status -->
-    <section class="card">
-      <h2>
-        <span>Migration Status (por Módulo)</span>
-        <small id="moduleMeta">Semáforo: &lt;50% rojo · 50–80% amarillo · &gt;80% verde</small>
-      </h2>
-      <div class="content">
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>MODULE</th>
-                <th>STAGE</th>
-                <th class="right">%</th>
-              </tr>
-            </thead>
-            <tbody id="moduleTbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+    <div class="treeWrap" id="tree"></div>
 
-    <!-- Objects table -->
-    <section class="card">
-      <div class="topSearch">
-        <div>
-          <b>Status de todos los objetos</b><br/>
-          <span class="hint">Esta tabla RESPETA tus filtros. Si desactivás un módulo/objeto, desaparece.</span>
-        </div>
-        <div class="field">
-          <input type="text" id="globalSearch" placeholder="Buscar (objeto, run, módulo, tabla)..." />
-        </div>
-      </div>
-
-      <div class="pillRow">
-        <label class="pill">
-          <input type="checkbox" id="chkOk" checked />
-          <span class="dot ok"></span> OK (&gt;80%)
-        </label>
-        <label class="pill">
-          <input type="checkbox" id="chkWarn" checked />
-          <span class="dot warn"></span> EN CURSO (50–80%)
-        </label>
-        <label class="pill">
-          <input type="checkbox" id="chkBad" checked />
-          <span class="dot bad"></span> CRÍTICO (&lt;50%)
-        </label>
-
-        <span class="pill" id="statsPill">—</span>
-        <span class="pill" id="timePill">—</span>
-      </div>
-
-      <div class="content" style="padding-top:0;">
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>TYPE</th>
-                <th>RUN</th>
-                <th>MODULE</th>
-                <th>OBJECT</th>
-                <th class="right">STEPS</th>
-                <th class="right">DONE</th>
-                <th class="right">%</th>
-                <th>STATUS</th>
-              </tr>
-            </thead>
-            <tbody id="objTbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+    <div class="mainHead" style="border-top:1px solid var(--border); border-bottom:0;">
+      <h2>Detalle de tablas (filtrado)</h2>
+      <small class="mono" id="tableMeta">—</small>
+    </div>
+    <div class="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>FOLDER</th>
+            <th>RUN</th>
+            <th>TYPE</th>
+            <th>MODULE</th>
+            <th>OBJECT</th>
+            <th>TABLE</th>
+            <th class="right"># records</th>
+            <th class="right">%</th>
+            <th>STATUS</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
   </main>
 </div>
 
+<!-- hidden import input -->
+<input type="file" id="importInput" accept=".json" style="display:none" />
+
 <script>
-/* =========================
-   DATA MODEL
-   =========================
-   Cada fila del log => "task"
-   Objeto agregado => (type + run + module + data_object) con %
-*/
-const LS_KEY_LOG = "msp_log_v1";
-const LS_KEY_PROFILE = "msp_profile_v1";
+  const LS_KEY = "msp_portal_log_v2";
 
-let RAW_TASKS = [];     // tasks (filas)
-let FILTERS = {
-  type: new Set(),
-  run: new Set(),
-  module: new Set(),
-  object: new Set(),
-  tableGroup: new Set(),
-};
-let UI = {
-  chkOk:true, chkWarn:true, chkBad:true,
-  globalSearch:"",
-  runSearch:"",
-  moduleSearch:"",
-  objectSearch:"",
-  tableGroupSearch:""
-};
-
-let chartRun, chartHour;
-
-function $(id){ return document.getElementById(id); }
-
-function setFileBadge(txt){
-  $("fileBadge").textContent = txt || "Sin archivo";
-}
-
-function pct1(n){
-  // 1 decimal SIN redondear hacia arriba
-  const x = Math.floor((Number(n)||0) * 10) / 10;
-  return x;
-}
-
-function toPctNumber(v){
-  if (v == null) return 0;
-  const s = String(v).trim();
-  if (!s) return 0;
-  return Number(s.replace("%","")) || 0;
-}
-
-function toInt(v){
-  const n = Number(String(v ?? "").replaceAll(".","").replaceAll(",",""));
-  return Number.isFinite(n) ? n : 0;
-}
-
-function escapeHtml(s){
-  return String(s ?? "")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-function parseTimeAny(v){
-  // soporta Date, ISO, "2026-02-25 12:10:26", "25.02.2026 12:10:26"
-  if (!v) return null;
-  if (v instanceof Date && !isNaN(v)) return v;
-
-  const s = String(v).trim();
-  if (!s) return null;
-
-  // ISO
-  const d1 = new Date(s);
-  if (!isNaN(d1)) return d1;
-
-  // "YYYY-MM-DD HH:MM:SS"
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
-  if (m){
-    const [_,Y,Mo,D,h,mi,se] = m;
-    return new Date(Number(Y), Number(Mo)-1, Number(D), Number(h), Number(mi), Number(se||"0"));
-  }
-
-  // "DD.MM.YYYY HH:MM:SS"
-  const m2 = s.match(/^(\d{2})\.(\d{2})\.(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
-  if (m2){
-    const [_,D,Mo,Y,h,mi,se] = m2;
-    return new Date(Number(Y), Number(Mo)-1, Number(D), Number(h), Number(mi), Number(se||"0"));
-  }
-
-  return null;
-}
-
-function groupFromTable(tableName){
-  const t = String(tableName||"").trim();
-  if (!t) return "—";
-  if (t.startsWith("/SNP/")) return "/SNP/";
-  if (t.startsWith("/")) return "Z/NAMESPACE";
-  // ejemplo BUT*
-  if (t.startsWith("BUT")) return "BUT*";
-  return t.slice(0,3).toUpperCase();
-}
-
-function classifyPct(p){
-  if (p > 80) return "ok";
-  if (p >= 50) return "warn";
-  return "bad";
-}
-
-function statusLabel(p){
-  const c = classifyPct(p);
-  return c === "ok" ? "OK" : (c === "warn" ? "EN CURSO" : "CRÍTICO");
-}
-
-/* =========================
-   LOAD / SAVE
-   ========================= */
-function saveLogToLocal(){
-  localStorage.setItem(LS_KEY_LOG, JSON.stringify({ tasks: RAW_TASKS }));
-}
-function loadLogFromLocal(){
-  const s = localStorage.getItem(LS_KEY_LOG);
-  if (!s) return false;
-  try{
-    const obj = JSON.parse(s);
-    RAW_TASKS = Array.isArray(obj.tasks) ? obj.tasks : [];
-    setFileBadge("Local");
-    return true;
-  }catch{ return false; }
-}
-
-function saveProfile(){
-  const profile = {
-    FILTERS: {
-      type: [...FILTERS.type],
-      run: [...FILTERS.run],
-      module: [...FILTERS.module],
-      object: [...FILTERS.object],
-      tableGroup: [...FILTERS.tableGroup],
-    },
-    UI
+  let TASKS = []; // filas “tabla”
+  let FILTERS = {
+    folders: new Set(),
+    runs: new Set(),
+    types: new Set(),
+    q: ""
   };
-  localStorage.setItem(LS_KEY_PROFILE, JSON.stringify(profile));
-  alert("Perfil guardado.");
-}
-function loadProfile(){
-  const s = localStorage.getItem(LS_KEY_PROFILE);
-  if (!s) return alert("No hay perfil guardado.");
-  try{
-    const p = JSON.parse(s);
-    FILTERS.type = new Set(p.FILTERS?.type ?? []);
-    FILTERS.run = new Set(p.FILTERS?.run ?? []);
-    FILTERS.module = new Set(p.FILTERS?.module ?? []);
-    FILTERS.object = new Set(p.FILTERS?.object ?? []);
-    FILTERS.tableGroup = new Set(p.FILTERS?.tableGroup ?? []);
-    UI = { ...UI, ...(p.UI||{}) };
-    // reflejar checks
-    $("chkOk").checked = !!UI.chkOk;
-    $("chkWarn").checked = !!UI.chkWarn;
-    $("chkBad").checked = !!UI.chkBad;
-    $("globalSearch").value = UI.globalSearch || "";
-    $("runSearch").value = UI.runSearch || "";
-    $("moduleSearch").value = UI.moduleSearch || "";
-    $("objectSearch").value = UI.objectSearch || "";
-    $("tableGroupSearch").value = UI.tableGroupSearch || "";
-    alert("Perfil cargado.");
-    renderAll();
-  }catch{
-    alert("Perfil inválido.");
-  }
-}
 
-function exportLog(){
-  const data = JSON.stringify({ tasks: RAW_TASKS }, null, 2);
-  downloadText("export_log.json", data);
-}
-function downloadText(filename, text){
-  const blob = new Blob([text], {type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
+  function $(id){ return document.getElementById(id); }
 
-function downloadPortal(){
-  // descarga este mismo HTML (útil para enviar)
-  const html = "<!doctype html>\n" + document.documentElement.outerHTML;
-  const blob = new Blob([html], {type:"text/html"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "migration_status_portal.html";
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
+  function setFileBadge(txt){ $("fileBadge").textContent = txt || "Sin archivo"; }
 
-/* =========================
-   FILE PARSING
-   ========================= */
-async function parseFile(file){
-  const name = file.name || "";
-  if (name.toLowerCase().endsWith(".json")){
-    const txt = await file.text();
-    const obj = JSON.parse(txt);
-    return normalizeTasks(obj.tasks || obj);
+  function escapeHtml(s){
+    return String(s ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
   }
 
-  // XLSX
-  const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, {type:"array"});
-  // agarra la primera hoja no vacía
-  const sheetName = wb.SheetNames[0];
-  const ws = wb.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
-  return normalizeTasks(rows);
-}
-
-function pick(row, keys){
-  for (const k of keys){
-    if (k in row) return row[k];
+  function toPctNumber(v){
+    if (v == null) return 0;
+    const s = String(v).trim();
+    if (!s) return 0;
+    return Number(s.replace("%","")) || 0;
   }
-  return "";
-}
 
-function normalizeTasks(rows){
-  // Mapea headers típicos (y tolera variaciones)
-  return (Array.isArray(rows) ? rows : []).map((r, idx) => {
-    const type = pick(r, ["Type","TYPE","type"]);
-    const run  = pick(r, ["Run name","RUN NAME","Run","run_name","RUN"]);
-    const block= pick(r, ["Block","BLOCK","block"]);
-    const module = pick(r, ["Module ID","MODULE ID","Module","module_id","MODULE"]);
-    const obj = pick(r, ["Data object","DATA OBJECT","Object","data_object","OBJECT"]);
-    const table = pick(r, ["Table","TABLE","table_name"]);
-    const status = pick(r, ["Status","STATUS","status"]);
-    const progress = pick(r, ["Progress","PROGRESS","progress"]);
-    const records = pick(r, ["Number of rec.","Number of records","# records","records_count","RECORDS"]);
-
-    // tiempos (si existen)
-    const endTime = pick(r, ["End date/time","End time","END","end_time","Finished at"]);
-    const startTime = pick(r, ["Start date/time","Start time","START","start_time","Started at"]);
-    const realRt = pick(r, ["Real runtime","Real runtim.","REAL RUNTIME","runtime_real","Real"]);
-    const procRt = pick(r, ["Process runtime","Process ru.","PROCESS","runtime_process"]);
-    const prepRt = pick(r, ["Preparation","Preparati","PREP","runtime_prep"]);
-    const folder = pick(r, ["Folder","FOLDER","folder"]);
-
-    const p = toPctNumber(progress);
-    const rec = toInt(records);
-
-    const end = parseTimeAny(endTime);
-    const start = parseTimeAny(startTime);
-
-    const t = {
-      id: `${run}__${module}__${obj}__${table}__${idx}`,
-      type: String(type||"").trim(),
-      run: String(run||"").trim(),
-      folder: String(folder||"").trim(),
-      block: String(block||"").trim(),
-      module: String(module||"").trim(),
-      object: String(obj||"").trim(),
-      table: String(table||"").trim(),
-      tableGroup: groupFromTable(table),
-      status: String(status||"").trim(),
-      progress: p,
-      records: rec,
-      endTime: end ? end.toISOString() : "",
-      startTime: start ? start.toISOString() : "",
-      realRuntime: String(realRt||"").trim(),
-      processRuntime: String(procRt||"").trim(),
-      prepRuntime: String(prepRt||"").trim(),
-    };
-    return t;
-  }).filter(t => t.run || t.module || t.object || t.table);
-}
-
-/* =========================
-   FILTER UI BUILD
-   ========================= */
-function countBy(list, keyFn){
-  const m = new Map();
-  for (const x of list){
-    const k = keyFn(x) || "—";
-    m.set(k, (m.get(k)||0) + 1);
+  function toInt(v){
+    const n = Number(String(v ?? "").replaceAll(".","").replaceAll(",",""));
+    return Number.isFinite(n) ? n : 0;
   }
-  return m;
-}
 
-function buildChecklist(containerId, valuesMap, selectedSet, searchText=""){
-  const el = $(containerId);
-  el.innerHTML = "";
+  function pct1NoUp(n){
+    // 1 decimal SIN redondear hacia arriba
+    return Math.floor((Number(n)||0) * 10) / 10;
+  }
 
-  const st = (searchText||"").toLowerCase().trim();
+  function classifyPct(p){
+    if (p > 80) return "ok";
+    if (p >= 50) return "warn";
+    return "bad";
+  }
 
-  const entries = [...valuesMap.entries()]
-    .filter(([k]) => !st || String(k).toLowerCase().includes(st))
-    .sort((a,b)=> String(a[0]).localeCompare(String(b[0])));
+  function statusLabelFromPct(p){
+    const c = classifyPct(p);
+    return c === "ok" ? "OK" : (c === "warn" ? "EN CURSO" : "CRÍTICO");
+  }
 
-  for (const [val, cnt] of entries){
-    const id = `${containerId}__${val}`.replaceAll(" ","_");
-    const row = document.createElement("label");
-    row.className = "checkitem";
-    row.innerHTML = `
-      <input type="checkbox" ${selectedSet.has(val) ? "checked":""} data-value="${escapeHtml(val)}" />
-      <span title="${escapeHtml(val)}">${escapeHtml(val)}</span>
-      <span class="count">${cnt}</span>
-    `;
-    row.querySelector("input").addEventListener("change", (e)=>{
-      const v = e.target.getAttribute("data-value");
-      if (e.target.checked) selectedSet.add(v);
-      else selectedSet.delete(v);
+  function countBy(list, keyFn){
+    const m = new Map();
+    for (const x of list){
+      const k = keyFn(x) || "—";
+      m.set(k, (m.get(k)||0) + 1);
+    }
+    return m;
+  }
+
+  function buildChecklist(containerId, valuesMap, selectedSet, searchText=""){
+    const el = $(containerId);
+    el.innerHTML = "";
+    const st = (searchText||"").toLowerCase().trim();
+
+    const entries = [...valuesMap.entries()]
+      .filter(([k]) => !st || String(k).toLowerCase().includes(st))
+      .sort((a,b)=> String(a[0]).localeCompare(String(b[0])));
+
+    for (const [val, cnt] of entries){
+      const row = document.createElement("label");
+      row.className = "checkitem";
+      row.innerHTML = `
+        <input type="checkbox" ${selectedSet.has(val) ? "checked":""} data-value="${escapeHtml(val)}" />
+        <span title="${escapeHtml(val)}">${escapeHtml(val)}</span>
+        <span class="count">${cnt}</span>
+      `;
+      row.querySelector("input").addEventListener("change", (e)=>{
+        const v = e.target.getAttribute("data-value");
+        if (e.target.checked) selectedSet.add(v);
+        else selectedSet.delete(v);
+      });
+      el.appendChild(row);
+    }
+  }
+
+  function ensureDefaultSelections(){
+    // si está vacío, default = todo
+    const folders = countBy(TASKS, t=>t.folder);
+    const runs = countBy(TASKS, t=>t.run);
+    const types = countBy(TASKS, t=>t.type);
+
+    if (FILTERS.folders.size === 0) for (const k of folders.keys()) FILTERS.folders.add(k);
+    if (FILTERS.runs.size === 0) for (const k of runs.keys()) FILTERS.runs.add(k);
+    if (FILTERS.types.size === 0) for (const k of types.keys()) FILTERS.types.add(k);
+  }
+
+  function filteredTasks(){
+    const q = (FILTERS.q||"").toLowerCase().trim();
+
+    return TASKS.filter(t=>{
+      if (FILTERS.folders.size && !FILTERS.folders.has(t.folder || "—")) return false;
+      if (FILTERS.runs.size && !FILTERS.runs.has(t.run || "—")) return false;
+      if (FILTERS.types.size && !FILTERS.types.has(t.type || "—")) return false;
+
+      if (q){
+        const hay = `${t.folder} ${t.run} ${t.type} ${t.module} ${t.object} ${t.table} ${t.block}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
     });
-    el.appendChild(row);
   }
-}
 
-function selectAll(){
-  for (const t of RAW_TASKS){
-    FILTERS.type.add(t.type || "—");
-    FILTERS.run.add(t.run || "—");
-    FILTERS.module.add(t.module || "—");
-    FILTERS.object.add(t.object || "—");
-    FILTERS.tableGroup.add(t.tableGroup || "—");
-  }
-  renderAll();
-}
-function selectNone(){
-  FILTERS.type.clear();
-  FILTERS.run.clear();
-  FILTERS.module.clear();
-  FILTERS.object.clear();
-  FILTERS.tableGroup.clear();
-  renderAll();
-}
+  // Agregado: % Object = sum(progress * weight)/sum(weight)
+  // weight = max(#records,1)
+  function aggregateObjectPct(tasks){
+    const m = new Map();
+    for (const t of tasks){
+      // Object dentro de Run dentro de Folder
+      const key = `${t.folder}||${t.run}||${t.object}`;
+      const weight = Math.max(t.records || 0, 1);
+      const pct = Math.max(0, Math.min(100, t.progress || 0));
 
-/* =========================
-   AGGREGATIONS
-   ========================= */
-function filteredTasks(){
-  const q = (UI.globalSearch||"").toLowerCase().trim();
-
-  let list = RAW_TASKS.slice();
-
-  // checkbox filters
-  const okSet = FILTERS.type.size ? FILTERS.type : null;
-  const runSet = FILTERS.run.size ? FILTERS.run : null;
-  const modSet = FILTERS.module.size ? FILTERS.module : null;
-  const objSet = FILTERS.object.size ? FILTERS.object : null;
-  const grpSet = FILTERS.tableGroup.size ? FILTERS.tableGroup : null;
-
-  list = list.filter(t => {
-    if (okSet && !okSet.has(t.type || "—")) return false;
-    if (runSet && !runSet.has(t.run || "—")) return false;
-    if (modSet && !modSet.has(t.module || "—")) return false;
-    if (objSet && !objSet.has(t.object || "—")) return false;
-    if (grpSet && !grpSet.has(t.tableGroup || "—")) return false;
-
-    if (q){
-      const hay = `${t.type} ${t.run} ${t.module} ${t.object} ${t.table} ${t.block} ${t.folder}`.toLowerCase();
-      if (!hay.includes(q)) return false;
+      if (!m.has(key)){
+        m.set(key, {
+          folder: t.folder || "—",
+          run: t.run || "—",
+          object: t.object || "—",
+          module: t.module || "—",
+          sumW:0, sumWP:0,
+          tables: []
+        });
+      }
+      const g = m.get(key);
+      g.sumW += weight;
+      g.sumWP += pct * weight;
+      g.tables.push(t);
     }
-    return true;
-  });
 
-  return list;
-}
+    return [...m.values()].map(g=>{
+      const raw = g.sumW ? (g.sumWP / g.sumW) : 0;
+      const pct = pct1NoUp(raw);
+      return { ...g, pct, cls: classifyPct(pct), statusLabel: statusLabelFromPct(pct) };
+    });
+  }
 
-function aggregateObjects(tasks){
-  // objeto = type+run+module+object (como portal)
-  const m = new Map();
-
-  for (const t of tasks){
-    const key = `${t.type}||${t.run}||${t.module}||${t.object}`;
-    const weight = Math.max(t.records || 0, 1);   // ponderación
-    const pct = Math.max(0, Math.min(100, t.progress || 0));
-
-    if (!m.has(key)){
-      m.set(key, { type:t.type||"—", run:t.run||"—", module:t.module||"—", object:t.object||"—",
-                  steps:0, done:0, sumW:0, sumWP:0 });
+  function aggregateRunPct(objects){
+    const m = new Map();
+    for (const o of objects){
+      const key = `${o.folder}||${o.run}`;
+      if (!m.has(key)){
+        m.set(key, { folder:o.folder, run:o.run, sum:0, n:0, objects:[] });
+      }
+      const g = m.get(key);
+      g.sum += o.pct;
+      g.n += 1;
+      g.objects.push(o);
     }
-    const g = m.get(key);
-    g.steps += 1;
-    // done si progress>=100 (o status CO si lo trae)
-    const isDone = (pct >= 100) || (String(t.status).toUpperCase()==="CO");
-    if (isDone) g.done += 1;
-
-    g.sumW += weight;
-    g.sumWP += pct * weight;
+    return [...m.values()].map(g=>{
+      const pct = g.n ? pct1NoUp(g.sum/g.n) : 0;
+      return { ...g, pct, cls: classifyPct(pct) };
+    });
   }
 
-  const out = [...m.values()].map(g => {
-    const rawPct = g.sumW ? (g.sumWP / g.sumW) : 0;
-    const pct = pct1(rawPct);
-    const cls = classifyPct(pct);
-    return { ...g, pct, cls, status: statusLabel(pct) };
+  function aggregateFolderPct(runs){
+    const m = new Map();
+    for (const r of runs){
+      const key = r.folder;
+      if (!m.has(key)){
+        m.set(key, { folder:r.folder, sum:0, n:0, runs:[] });
+      }
+      const g = m.get(key);
+      g.sum += r.pct;
+      g.n += 1;
+      g.runs.push(r);
+    }
+    return [...m.values()].map(g=>{
+      const pct = g.n ? pct1NoUp(g.sum/g.n) : 0;
+      return { ...g, pct, cls: classifyPct(pct) };
+    });
+  }
+
+  function pctClass(p){
+    const cls = classifyPct(p);
+    return cls;
+  }
+
+  function render(){
+    ensureDefaultSelections();
+
+    // render filter lists
+    const folders = countBy(TASKS, t=>t.folder);
+    const runs = countBy(TASKS, t=>t.run);
+    const types = countBy(TASKS, t=>t.type);
+
+    buildChecklist("folderList", folders, FILTERS.folders, $("folderSearch").value);
+    buildChecklist("runList", runs, FILTERS.runs, $("runSearch").value);
+    buildChecklist("typeList", types, FILTERS.types);
+
+    const tasks = filteredTasks();
+    const objects = aggregateObjectPct(tasks);
+    const runsAgg = aggregateRunPct(objects);
+    const foldersAgg = aggregateFolderPct(runsAgg);
+
+    $("metaText").textContent = `${tasks.length} tablas · ${objects.length} objects · ${runsAgg.length} runs · ${foldersAgg.length} folders`;
+
+    // pills
+    const okN = objects.filter(o=>o.cls==="ok").length;
+    const warnN = objects.filter(o=>o.cls==="warn").length;
+    const badN = objects.filter(o=>o.cls==="bad").length;
+    $("pillCounts").innerHTML = `Objects: <span class="mono">${objects.length}</span> · OK <span class="mono">${okN}</span> · EN CURSO <span class="mono">${warnN}</span> · CRÍTICO <span class="mono">${badN}</span>`;
+
+    // TREE: Folder -> Run -> Object -> Tables
+    const tree = $("tree");
+    tree.innerHTML = "";
+
+    // sort folders by name
+    foldersAgg.sort((a,b)=> a.folder.localeCompare(b.folder));
+    for (const f of foldersAgg){
+      const folderDetails = document.createElement("details");
+      folderDetails.open = false;
+
+      folderDetails.innerHTML = `
+        <summary>
+          <div class="sumLeft">
+            <span class="caret"></span>
+            <span class="chip">FOLDER</span>
+            <div class="nodeTitle" title="${escapeHtml(f.folder)}">${escapeHtml(f.folder)}</div>
+          </div>
+          <div class="meta">
+            <span class="pct ${pctClass(f.pct)}">${f.pct.toFixed(1)}%</span>
+          </div>
+        </summary>
+        <div class="children"></div>
+      `;
+
+      const folderChildren = folderDetails.querySelector(".children");
+
+      // runs inside folder
+      const runsList = f.runs.slice().sort((a,b)=> a.run.localeCompare(b.run));
+      for (const r of runsList){
+        const runDetails = document.createElement("details");
+        runDetails.open = false;
+
+        runDetails.innerHTML = `
+          <summary>
+            <div class="sumLeft">
+              <span class="caret"></span>
+              <span class="chip">RUN</span>
+              <div class="nodeTitle" title="${escapeHtml(r.run)}">${escapeHtml(r.run)}</div>
+            </div>
+            <div class="meta">
+              <span class="pct ${pctClass(r.pct)}">${r.pct.toFixed(1)}%</span>
+            </div>
+          </summary>
+          <div class="children"></div>
+        `;
+
+        const runChildren = runDetails.querySelector(".children");
+
+        // objects inside run
+        const objList = r.objects.slice().sort((a,b)=> a.object.localeCompare(b.object));
+        for (const o of objList){
+          const objDetails = document.createElement("details");
+          objDetails.open = false;
+
+          objDetails.innerHTML = `
+            <summary>
+              <div class="sumLeft">
+                <span class="caret"></span>
+                <span class="chip">OBJ</span>
+                <div class="nodeTitle" title="${escapeHtml(o.object)}">${escapeHtml(o.object)}</div>
+              </div>
+              <div class="meta">
+                <span class="pct ${pctClass(o.pct)}">${o.pct.toFixed(1)}%</span>
+              </div>
+            </summary>
+            <div class="children"></div>
+          `;
+
+          const objChildren = objDetails.querySelector(".children");
+
+          // tables inside object
+          const tables = o.tables.slice().sort((a,b)=> (a.table||"").localeCompare(b.table||""));
+          for (const t of tables){
+            const row = document.createElement("div");
+            row.className = "childRow";
+            row.innerHTML = `
+              <div class="sumLeft" style="gap:10px;">
+                <span class="chip">TAB</span>
+                <span class="mono" title="${escapeHtml(t.table)}">${escapeHtml(t.table || "—")}</span>
+                <span class="mono" style="color:var(--muted);">#${formatInt(t.records)}</span>
+              </div>
+              <div class="meta">
+                <span class="pct ${pctClass(t.progress)}">${pct1NoUp(t.progress).toFixed(1)}%</span>
+              </div>
+            `;
+            objChildren.appendChild(row);
+          }
+
+          runChildren.appendChild(objDetails);
+        }
+
+        folderChildren.appendChild(runDetails);
+      }
+
+      tree.appendChild(folderDetails);
+    }
+
+    // TABLE
+    const tb = $("tbody");
+    tb.innerHTML = "";
+    $("tableMeta").textContent = `Mostrando ${tasks.length} filas`;
+    for (const t of tasks){
+      const cls = classifyPct(pct1NoUp(t.progress));
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(t.folder)}</td>
+        <td>${escapeHtml(t.run)}</td>
+        <td class="mono">${escapeHtml(t.type)}</td>
+        <td class="mono">${escapeHtml(t.module)}</td>
+        <td>${escapeHtml(t.object)}</td>
+        <td class="mono">${escapeHtml(t.table)}</td>
+        <td class="right mono">${formatInt(t.records)}</td>
+        <td class="right mono">
+          <span class="progressBar"><i style="width:${Math.max(0,Math.min(100,t.progress))}%"></i></span>
+          ${pct1NoUp(t.progress).toFixed(1)}%
+        </td>
+        <td>
+          <span class="statusTag ${cls}">
+            <span class="sDot"></span>
+            ${escapeHtml(t.status || statusLabelFromPct(pct1NoUp(t.progress)))}
+          </span>
+        </td>
+      `;
+      tb.appendChild(tr);
+    }
+
+    // persist local
+    localStorage.setItem(LS_KEY, JSON.stringify({ tasks: TASKS }));
+  }
+
+  function formatInt(n){
+    n = Number(n||0);
+    return n.toLocaleString("es-AR");
+  }
+
+  // ===== File parsing =====
+  function pick(row, keys){
+    for (const k of keys){
+      if (k in row) return row[k];
+    }
+    return "";
+  }
+
+  function normalizeTasks(rows){
+    return (Array.isArray(rows) ? rows : []).map((r, idx) => {
+      const folder = pick(r, ["Folder","FOLDER","folder"]);
+      const run  = pick(r, ["Run name","RUN NAME","Run","run_name","RUN"]);
+      const type = pick(r, ["Type","TYPE","type"]);
+      const block= pick(r, ["Block","BLOCK","block"]);
+      const module = pick(r, ["Module ID","MODULE ID","Module","module_id","MODULE"]);
+      const object = pick(r, ["Data object","DATA OBJECT","Object","data_object","OBJECT"]);
+      const table = pick(r, ["Table","TABLE","table_name"]);
+      const status = pick(r, ["Status","STATUS","status"]);
+      const progress = pick(r, ["Progress","PROGRESS","progress"]);
+      const records = pick(r, ["Number of rec.","Number of records","# records","records_count","RECORDS"]);
+
+      const t = {
+        id: `${folder}__${run}__${object}__${table}__${idx}`,
+        folder: String(folder||"—").trim() || "—",
+        run: String(run||"—").trim() || "—",
+        type: String(type||"—").trim() || "—",
+        block: String(block||"").trim(),
+        module: String(module||"—").trim() || "—",
+        object: String(object||"—").trim() || "—",
+        table: String(table||"—").trim() || "—",
+        status: String(status||"").trim(),
+        progress: toPctNumber(progress),
+        records: toInt(records)
+      };
+      return t;
+    }).filter(t => t.folder !== "—" || t.run !== "—" || t.object !== "—" || t.table !== "—");
+  }
+
+  async function parseFile(file){
+    const name = (file.name||"").toLowerCase();
+
+    if (name.endsWith(".json")){
+      const txt = await file.text();
+      const obj = JSON.parse(txt);
+      const rows = Array.isArray(obj) ? obj : (obj.tasks || []);
+      return normalizeTasks(rows);
+    }
+
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:"array"});
+    const sheetName = wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
+    return normalizeTasks(rows);
+  }
+
+  // ===== Buttons =====
+  $("applyBtn").addEventListener("click", render);
+
+  $("selectAllBtn").addEventListener("click", ()=>{
+    FILTERS.folders.clear(); FILTERS.runs.clear(); FILTERS.types.clear();
+    for (const t of TASKS){
+      FILTERS.folders.add(t.folder);
+      FILTERS.runs.add(t.run);
+      FILTERS.types.add(t.type);
+    }
+    render();
   });
 
-  // semáforo checkboxes
-  out.sort((a,b)=> b.pct - a.pct);
-  return out;
-}
+  $("selectNoneBtn").addEventListener("click", ()=>{
+    FILTERS.folders.clear(); FILTERS.runs.clear(); FILTERS.types.clear();
+    render();
+  });
 
-function aggregateModules(objRows){
-  const m = new Map();
-  for (const o of objRows){
-    const key = o.module || "—";
-    if (!m.has(key)) m.set(key, { module:key, stage:"—", pctSum:0, n:0 });
-    const g = m.get(key);
-    g.pctSum += o.pct;
-    g.n += 1;
-  }
-  return [...m.values()].map(g => {
-    const pct = g.n ? pct1(g.pctSum / g.n) : 0;
-    return { module:g.module, stage:"—", pct, cls: classifyPct(pct) };
-  }).sort((a,b)=> b.pct - a.pct);
-}
+  $("exportJsonBtn").addEventListener("click", ()=>{
+    const data = JSON.stringify({ tasks: TASKS }, null, 2);
+    downloadText("migration_log_export.json", data);
+  });
 
-/* =========================
-   CHARTS
-   ========================= */
-function buildRunCurve(objRows){
-  // % promedio por run
-  const m = new Map();
-  for (const o of objRows){
-    const k = o.run || "—";
-    if (!m.has(k)) m.set(k, {sum:0,n:0});
-    const g = m.get(k);
-    g.sum += o.pct; g.n += 1;
-  }
-  const labels = [...m.keys()].sort();
-  const data = labels.map(k => pct1(m.get(k).sum / m.get(k).n));
+  $("importJsonBtn").addEventListener("click", ()=> $("importInput").click());
 
-  $("curveMeta").textContent = `${labels.length} runs`;
-
-  const ctx = $("chartRun");
-  if (chartRun) chartRun.destroy();
-  chartRun = new Chart(ctx, {
-    type:"line",
-    data:{
-      labels,
-      datasets:[{
-        label:"% avance (promedio por run)",
-        data,
-        tension:.25,
-        pointRadius:3
-      }]
-    },
-    options:{
-      responsive:true,
-      plugins:{ legend:{ display:true } },
-      scales:{ y:{ min:0, max:100, ticks:{ callback:(v)=> v+"%" } } }
+  $("importInput").addEventListener("change", async (e)=>{
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try{
+      const tasks = await parseFile(file);
+      TASKS = tasks;
+      setFileBadge(file.name);
+      FILTERS.folders.clear(); FILTERS.runs.clear(); FILTERS.types.clear();
+      render();
+    }catch(err){
+      console.error(err);
+      alert("JSON inválido.");
+    }finally{
+      e.target.value = "";
     }
   });
-}
 
-function buildHourCurve(tasks){
-  // agrupa por hora usando endTime (si existe)
-  const byHour = new Map();
-  for (const t of tasks){
-    const d = t.endTime ? new Date(t.endTime) : null;
-    if (!d || isNaN(d)) continue;
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:00`;
-    if (!byHour.has(key)) byHour.set(key, {sumW:0,sumWP:0});
-    const g = byHour.get(key);
-    const weight = Math.max(t.records||0, 1);
-    const pct = Math.max(0, Math.min(100, t.progress||0));
-    g.sumW += weight;
-    g.sumWP += pct * weight;
-  }
-
-  const labels = [...byHour.keys()].sort();
-  const data = labels.map(k => {
-    const g = byHour.get(k);
-    return g.sumW ? pct1(g.sumWP/g.sumW) : 0;
-  });
-
-  $("hourMeta").textContent = labels.length ? `${labels.length} puntos (por hora)` : "Sin timestamps (End date/time)";
-
-  const ctx = $("chartHour");
-  if (chartHour) chartHour.destroy();
-  chartHour = new Chart(ctx, {
-    type:"line",
-    data:{
-      labels,
-      datasets:[{
-        label:"% acumulado (por hora)",
-        data,
-        tension:.25,
-        pointRadius:2
-      }]
-    },
-    options:{
-      responsive:true,
-      plugins:{ legend:{ display:true } },
-      scales:{ y:{ min:0, max:100, ticks:{ callback:(v)=> v+"%" } } }
-    }
-  });
-}
-
-/* =========================
-   RENDER
-   ========================= */
-function renderFilters(){
-  const types = countBy(RAW_TASKS, t=> t.type || "—");
-  const runs  = countBy(RAW_TASKS, t=> t.run || "—");
-  const mods  = countBy(RAW_TASKS, t=> t.module || "—");
-  const objs  = countBy(RAW_TASKS, t=> t.object || "—");
-  const grps  = countBy(RAW_TASKS, t=> t.tableGroup || "—");
-
-  // si el set está vacío (primer carga), por default selecciona todo
-  const ensureDefault = (set, map) => {
-    if (set.size === 0){
-      for (const k of map.keys()) set.add(k);
-    }
-  };
-  ensureDefault(FILTERS.type, types);
-  ensureDefault(FILTERS.run, runs);
-  ensureDefault(FILTERS.module, mods);
-  ensureDefault(FILTERS.object, objs);
-  ensureDefault(FILTERS.tableGroup, grps);
-
-  buildChecklist("typeList", types, FILTERS.type);
-  buildChecklist("runList", runs, FILTERS.run, UI.runSearch);
-  buildChecklist("moduleList", mods, FILTERS.module, UI.moduleSearch);
-  buildChecklist("objectList", objs, FILTERS.object, UI.objectSearch);
-  buildChecklist("tableGroupList", grps, FILTERS.tableGroup, UI.tableGroupSearch);
-}
-
-function renderTables(){
-  const tasks = filteredTasks();
-  const objRows = aggregateObjects(tasks);
-
-  // aplicar semáforo checkbox
-  const showOk = $("chkOk").checked;
-  const showWarn = $("chkWarn").checked;
-  const showBad = $("chkBad").checked;
-
-  const filteredObj = objRows.filter(o => {
-    if (o.cls === "ok") return showOk;
-    if (o.cls === "warn") return showWarn;
-    return showBad;
-  });
-
-  // stats pill
-  const okN = filteredObj.filter(o=>o.cls==="ok").length;
-  const warnN = filteredObj.filter(o=>o.cls==="warn").length;
-  const badN = filteredObj.filter(o=>o.cls==="bad").length;
-  $("statsPill").innerHTML = `Objetos: <span class="mono">${filteredObj.length}</span> · OK <span class="mono">${okN}</span> · EN CURSO <span class="mono">${warnN}</span> · CRÍTICO <span class="mono">${badN}</span>`;
-
-  // time pill
-  $("timePill").innerHTML = `Filas (tasks): <span class="mono">${tasks.length}</span>`;
-
-  // Objects table
-  const tb = $("objTbody");
-  tb.innerHTML = "";
-  for (const o of filteredObj){
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="mono">${escapeHtml(o.type)}</td>
-      <td>${escapeHtml(o.run)}</td>
-      <td class="mono">${escapeHtml(o.module)}</td>
-      <td>${escapeHtml(o.object)}</td>
-      <td class="right mono">${o.steps}</td>
-      <td class="right mono">${o.done}</td>
-      <td class="right mono">
-        <span class="progressBar"><i style="width:${Math.max(0,Math.min(100,o.pct))}%"></i></span>
-        ${o.pct.toFixed(1)}%
-      </td>
-      <td>
-        <span class="statusTag ${o.cls}">
-          <span class="sDot"></span>
-          ${escapeHtml(o.status)}
-        </span>
-      </td>
-    `;
-    tb.appendChild(tr);
-  }
-
-  // Module table
-  const mods = aggregateModules(objRows);
-  const mtb = $("moduleTbody");
-  mtb.innerHTML = "";
-  for (const m of mods){
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="mono">${escapeHtml(m.module)}</td>
-      <td class="muted">—</td>
-      <td class="right mono">${m.pct.toFixed(1)}%</td>
-    `;
-    mtb.appendChild(tr);
-  }
-
-  // Charts
-  buildRunCurve(objRows);
-  buildHourCurve(tasks);
-}
-
-function renderAll(){
-  renderFilters();
-  renderTables();
-  saveLogToLocal(); // persistencia automática
-}
-
-/* =========================
-   EVENTS
-   ========================= */
-$("applyBtn").addEventListener("click", ()=> renderAll());
-$("selectAllBtn").addEventListener("click", selectAll);
-$("selectNoneBtn").addEventListener("click", selectNone);
-$("downloadHtmlBtn").addEventListener("click", downloadPortal);
-$("saveProfileBtn").addEventListener("click", saveProfile);
-$("loadProfileBtn").addEventListener("click", loadProfile);
-$("exportLogBtn").addEventListener("click", exportLog);
-$("clearLogBtn").addEventListener("click", ()=>{
-  if (!confirm("¿Seguro que querés limpiar el log local?")) return;
-  RAW_TASKS = [];
-  localStorage.removeItem(LS_KEY_LOG);
-  setFileBadge("Sin archivo");
-  renderAll();
-});
-
-$("globalSearch").addEventListener("input", (e)=>{
-  UI.globalSearch = e.target.value || "";
-  renderTables();
-});
-
-$("runSearch").addEventListener("input", (e)=>{
-  UI.runSearch = e.target.value || "";
-  renderFilters();
-});
-$("moduleSearch").addEventListener("input", (e)=>{
-  UI.moduleSearch = e.target.value || "";
-  renderFilters();
-});
-$("objectSearch").addEventListener("input", (e)=>{
-  UI.objectSearch = e.target.value || "";
-  renderFilters();
-});
-$("tableGroupSearch").addEventListener("input", (e)=>{
-  UI.tableGroupSearch = e.target.value || "";
-  renderFilters();
-});
-
-$("chkOk").addEventListener("change", ()=>{
-  UI.chkOk = $("chkOk").checked;
-  renderTables();
-});
-$("chkWarn").addEventListener("change", ()=>{
-  UI.chkWarn = $("chkWarn").checked;
-  renderTables();
-});
-$("chkBad").addEventListener("change", ()=>{
-  UI.chkBad = $("chkBad").checked;
-  renderTables();
-});
-
-$("fileInput").addEventListener("change", async (e)=>{
-  const file = e.target.files?.[0];
-  if (!file) return;
-  try{
-    const tasks = await parseFile(file);
-    RAW_TASKS = tasks;
-    setFileBadge(file.name);
-    // reset filtros para que se armen con lo nuevo
-    FILTERS.type.clear(); FILTERS.run.clear(); FILTERS.module.clear(); FILTERS.object.clear(); FILTERS.tableGroup.clear();
-    renderAll();
-  }catch(err){
-    console.error(err);
-    alert("No pude leer el archivo. Si querés, pasame un sample y ajusto el mapeo de columnas.");
-  }
-});
-
-/* =========================
-   INIT
-   ========================= */
-(function init(){
-  const ok = loadLogFromLocal();
-  if (!ok){
+  $("clearBtn").addEventListener("click", ()=>{
+    if (!confirm("¿Seguro que querés limpiar el log local?")) return;
+    TASKS = [];
+    localStorage.removeItem(LS_KEY);
+    FILTERS.folders.clear(); FILTERS.runs.clear(); FILTERS.types.clear();
     setFileBadge("Sin archivo");
+    render();
+  });
+
+  $("fileInput").addEventListener("change", async (e)=>{
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try{
+      const tasks = await parseFile(file);
+      TASKS = tasks;
+      setFileBadge(file.name);
+      FILTERS.folders.clear(); FILTERS.runs.clear(); FILTERS.types.clear();
+      render();
+    }catch(err){
+      console.error(err);
+      alert("No pude leer el archivo. Si querés, mandame un sample con headers y lo ajusto.");
+    }
+  });
+
+  // filter search inputs
+  $("folderSearch").addEventListener("input", ()=> render());
+  $("runSearch").addEventListener("input", ()=> render());
+  $("globalSearch").addEventListener("input", (e)=>{
+    FILTERS.q = e.target.value || "";
+    render();
+  });
+
+  // ===== Download helper =====
+  function downloadText(filename, text){
+    const blob = new Blob([text], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
-  renderAll();
-})();
+
+  // ===== Init =====
+  (function init(){
+    // load local
+    const s = localStorage.getItem(LS_KEY);
+    if (s){
+      try{
+        const obj = JSON.parse(s);
+        TASKS = normalizeTasks(obj.tasks || obj || []);
+        setFileBadge("Local");
+      }catch{}
+    }
+    render();
+  })();
 </script>
 </body>
 </html>
