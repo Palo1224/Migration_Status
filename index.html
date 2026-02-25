@@ -223,7 +223,27 @@
     }
     tbody tr:hover{ background:#f8fafc; }
     .right{ text-align:right; }
-
+/* Group header row in table */
+tr.groupRow td{
+  position: sticky;
+  top: 38px; /* queda debajo del header sticky */
+  z-index: 1;
+  background:#fcfcfd;
+  color:#475467;
+  font-weight:700;
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+}
+.groupPill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px;
+  border:1px solid var(--border);
+  background:var(--chip);
+  font-size:12px;
+}
+.groupPill.ok{ border-color: rgba(18,183,106,.25); background: rgba(18,183,106,.06); }
+.groupPill.warn{ border-color: rgba(247,144,9,.25); background: rgba(247,144,9,.06); }
+.groupPill.bad{ border-color: rgba(240,68,56,.25); background: rgba(240,68,56,.06); }
     .statusTag{
       display:inline-flex; align-items:center; gap:8px;
       padding:6px 10px; border-radius:999px;
@@ -414,6 +434,42 @@
     "LAST IMPORT",
     "LAST ACTIVITIES",
   ];
+  // Runs esperadas por folder (si faltan, las mostramos igual con 0%)
+const EXPECTED_RUN_SUFFIXES = [
+  "Preparation",
+  "Preselection",
+  "Export",
+  "Import Forerunner",
+  "Prior Imports",
+  "Import",
+];
+
+function extractRunBase(runName){
+  const r = String(runName || "").trim();
+  if (!r) return "";
+  const suffixes = EXPECTED_RUN_SUFFIXES.slice().sort((a,b)=> b.length - a.length);
+
+  for (const s of suffixes){
+    const esc = s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`\\s+${esc}(\\s*\\(.*\\))?$`, "i"); // soporta "(2)"
+    if (re.test(r)) return r.replace(re, "").trim();
+  }
+  return r;
+}
+
+function mostCommon(arr){
+  const m = new Map();
+  for (const x of arr){
+    const k = String(x||"").trim();
+    if (!k) continue;
+    m.set(k, (m.get(k)||0) + 1);
+  }
+  let best = "", bestN = 0;
+  for (const [k,n] of m.entries()){
+    if (n > bestN){ best = k; bestN = n; }
+  }
+  return best;
+}
 
   function stageRank(stage){
     const s = String(stage||"").toUpperCase().trim();
@@ -484,6 +540,16 @@
     // 1 decimal SIN redondear hacia arriba
     return Math.floor((Number(n)||0) * 10) / 10;
   }
+  function groupKeyFromPct(p){
+  const cls = classifyPct(p);
+  return cls === "bad" ? "CRÍTICO" : (cls === "warn" ? "EN CURSO" : "OK");
+}
+function groupRank(name){
+  // orden de grupos arriba a abajo
+  if (name === "CRÍTICO") return 0;
+  if (name === "EN CURSO") return 1;
+  return 2; // OK
+}
   function classifyPct(p){
     if (p > 80) return "ok";
     if (p >= 50) return "warn";
@@ -625,7 +691,84 @@
       return { ...g, pct, cls: classifyPct(pct) };
     });
   }
+// Opcional: folders esperados aunque no aparezcan en el log
+const EXPECTED_FOLDERS = []; // si querés, ponés strings acá
 
+// Opcional: si un folder NO aparece en el log, podés seedear bases posibles
+const SEED_BASES_BY_FOLDER = {
+  // "TPL_NZD_Initial_Data_Load (REPLICATE CHANGES)": ["TM0 NZD IDL", "TM1 NZD IDL", "GLS NZD IDL", "GL NZD IDL"],
+};
+
+function fillMissingRunsWithZero(tasks, runsAgg){
+  // tasks por folder
+  const byFolder = new Map();
+  for (const t of tasks){
+    const f = t.folder || "—";
+    if (!byFolder.has(f)) byFolder.set(f, []);
+    byFolder.get(f).push(t);
+  }
+
+  // runs existentes por folder
+  const runsByFolder = new Map();
+  for (const r of runsAgg){
+    const f = r.folder || "—";
+    if (!runsByFolder.has(f)) runsByFolder.set(f, new Map());
+    runsByFolder.get(f).set(r.run, r);
+  }
+
+  // folders = log U esperados
+  const folderSet = new Set([...byFolder.keys(), ...EXPECTED_FOLDERS]);
+
+  const filled = [];
+
+  for (const folder of folderSet){
+    const folderTasks = byFolder.get(folder) || [];
+    const existingMap = runsByFolder.get(folder) || new Map();
+
+    // 1) detectar TODOS los bases presentes (TM0/TM1/GLS/GL/etc.)
+    const baseSet = new Set();
+
+    for (const t of folderTasks){
+      const b = extractRunBase(t.run);
+      if (b) baseSet.add(b);
+    }
+
+    // si el folder no aparece aún en log, usamos seeds (si existen)
+    if (baseSet.size === 0){
+      const seeds = SEED_BASES_BY_FOLDER[folder] || [];
+      for (const b of seeds) baseSet.add(String(b||"").trim());
+    }
+
+    // fallback si no hay nada
+    if (baseSet.size === 0) baseSet.add("RUN");
+
+    // 2) agrego runs reales
+    for (const r of existingMap.values()){
+      filled.push(r);
+    }
+
+    // 3) placeholders por cada base
+    for (const base of baseSet){
+      for (const suffix of EXPECTED_RUN_SUFFIXES){
+        const expectedName = `${base} ${suffix}`.trim();
+        if (!existingMap.has(expectedName)){
+          filled.push({
+            folder,
+            run: expectedName,
+            stage: suffix, // para orden
+            pct: 0,
+            cls: "bad",
+            sum: 0,
+            n: 0,
+            objects: []
+          });
+        }
+      }
+    }
+  }
+
+  return filled;
+}
   function render(){
     ensureDefaultSelections();
 
@@ -637,11 +780,9 @@
     buildChecklist("runList", runs, FILTERS.runs, $("runSearch").value);
     buildChecklist("typeList", types, FILTERS.types);
 
-    const tasks = filteredTasks();
-    const objects = aggregateObjectPct(tasks);
     const runsAgg = aggregateRunPct(objects);
-    const foldersAgg = aggregateFolderPct(runsAgg);
-
+    const runsAggFilled = fillMissingRunsWithZero(tasks, runsAgg);
+    const foldersAgg = aggregateFolderPct(runsAggFilled); 
     $("metaText").textContent = `${tasks.length} tablas · ${objects.length} objects · ${runsAgg.length} runs · ${foldersAgg.length} folders`;
 
     const okN = objects.filter(o=>o.cls==="ok").length;
@@ -777,35 +918,100 @@
       return (a.table||"").localeCompare(b.table||"");
     });
 
-    for (const t of tasksSorted){
-      const sCode = (t.status_code || "").toUpperCase();
-      const sCls = statusClass(sCode);
-      const stageTxt = t.stage ? t.stage : "—";
+      // Orden base (como ya tenías)
+const tasksSorted = tasks.slice().sort((a,b)=>{
+  const fd = (a.folder||"").localeCompare(b.folder||"");
+  if (fd !== 0) return fd;
+  const sr = stageRank(a.stage) - stageRank(b.stage);
+  if (sr !== 0) return sr;
+  const rd = (a.run||"").localeCompare(b.run||"");
+  if (rd !== 0) return rd;
+  const od = (a.object||"").localeCompare(b.object||"");
+  if (od !== 0) return od;
+  return (a.table||"").localeCompare(b.table||"");
+});
 
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(t.folder)}</td>
-        <td>${escapeHtml(stageTxt)}</td>
-        <td>${escapeHtml(t.run)}</td>
-        <td class="mono">${escapeHtml(t.type)}</td>
-        <td class="mono">${escapeHtml(t.module)}</td>
-        <td>${escapeHtml(t.object)}</td>
-        <td class="mono">${escapeHtml(t.table)}</td>
-        <td class="right mono">${formatInt(t.records)}</td>
-        <td class="right mono">
-          <span class="progressBar"><i style="width:${Math.max(0,Math.min(100,t.progress))}%"></i></span>
-          ${pct1NoUp(t.progress).toFixed(1)}%
-        </td>
-        <td>
-          <span class="statusTag ${sCls}" title="${escapeHtml(statusLabel(sCode))}">
-            <span class="sDot"></span>
-            <span class="mono">${escapeHtml(sCode || "—")}</span>
-            <span style="color:var(--muted);">· ${escapeHtml(statusLabel(sCode))}</span>
-          </span>
-        </td>
-      `;
-      tb.appendChild(tr);
-    }
+// 1) calculamos grupo por %
+const rowsWithGroup = tasksSorted.map(t=>{
+  const p = pct1NoUp(t.progress);
+  const cls = classifyPct(p);
+  const g = groupKeyFromPct(p);
+  return { t, p, cls, g };
+});
+
+// 2) agrupamos y ordenamos grupos CRÍTICO -> EN CURSO -> OK
+rowsWithGroup.sort((a,b)=>{
+  const gr = groupRank(a.g) - groupRank(b.g);
+  if (gr !== 0) return gr;
+
+  // dentro de cada grupo mantenemos tu orden original
+  const fd = (a.t.folder||"").localeCompare(b.t.folder||"");
+  if (fd !== 0) return fd;
+  const sr = stageRank(a.t.stage) - stageRank(b.t.stage);
+  if (sr !== 0) return sr;
+  const rd = (a.t.run||"").localeCompare(b.t.run||"");
+  if (rd !== 0) return rd;
+  const od = (a.t.object||"").localeCompare(b.t.object||"");
+  if (od !== 0) return od;
+  return (a.t.table||"").localeCompare(b.t.table||"");
+});
+
+// 3) render con separadores
+let currentGroup = null;
+
+const groupCounts = rowsWithGroup.reduce((acc, r)=>{
+  acc[r.g] = (acc[r.g] || 0) + 1;
+  return acc;
+}, {});
+
+for (const r of rowsWithGroup){
+  const t = r.t;
+
+  if (r.g !== currentGroup){
+    currentGroup = r.g;
+
+    const grpTr = document.createElement("tr");
+    grpTr.className = "groupRow";
+    grpTr.innerHTML = `
+      <td colspan="10">
+        <span class="groupPill ${r.cls}">
+          <span class="dot ${r.cls}" style="width:8px;height:8px;border-radius:999px;"></span>
+          ${escapeHtml(currentGroup)}
+        </span>
+        <span class="mono" style="margin-left:10px;">${groupCounts[currentGroup]} filas</span>
+      </td>
+    `;
+    tb.appendChild(grpTr);
+  }
+
+  const sCode = (t.status_code || "").toUpperCase();
+  const sCls = statusClass(sCode);
+  const stageTxt = t.stage ? t.stage : "—";
+
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${escapeHtml(t.folder)}</td>
+    <td>${escapeHtml(stageTxt)}</td>
+    <td>${escapeHtml(t.run)}</td>
+    <td class="mono">${escapeHtml(t.type)}</td>
+    <td class="mono">${escapeHtml(t.module)}</td>
+    <td>${escapeHtml(t.object)}</td>
+    <td class="mono">${escapeHtml(t.table)}</td>
+    <td class="right mono">${formatInt(t.records)}</td>
+    <td class="right mono">
+      <span class="progressBar"><i style="width:${Math.max(0,Math.min(100,t.progress))}%"></i></span>
+      ${r.p.toFixed(1)}%
+    </td>
+    <td>
+      <span class="statusTag ${sCls}" title="${escapeHtml(statusLabel(sCode))}">
+        <span class="sDot"></span>
+        <span class="mono">${escapeHtml(sCode || "—")}</span>
+        <span style="color:var(--muted);">· ${escapeHtml(statusLabel(sCode))}</span>
+      </span>
+    </td>
+  `;
+  tb.appendChild(tr);
+}
 
     localStorage.setItem(LS_KEY, JSON.stringify({ tasks: TASKS }));
   }
