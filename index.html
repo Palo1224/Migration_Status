@@ -3,1419 +3,806 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Migration Status Portal</title>
-
-  <!-- SIN CDN: este archivo debe estar en la misma carpeta que index.html -->
-  <script src="./xlsx.full.min.js"></script>
-
+  <title>Runs Monitor</title>
   <style>
     :root{
-      --bg:#ffffff;
-      --card:#ffffff;
-      --text:#111827;
-      --muted:#6b7280;
-      --line:#e5e7eb;
-      --line2:#f1f5f9;
-      --shadow:0 2px 10px rgba(0,0,0,.06);
+      --bg:#0b1220;
+      --panel:#0f172a;
+      --panel2:#0b1324;
+      --muted:#94a3b8;
+      --text:#e2e8f0;
+      --border:#1f2a44;
+      --chip:#111c33;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --err:#ef4444;
+      --idle:#64748b;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
       --radius:14px;
-
-      --green-bg:#ecfdf5; --green-bd:#a7f3d0; --green-tx:#065f46;
-      --yellow-bg:#fffbeb; --yellow-bd:#fde68a; --yellow-tx:#92400e;
-      --red-bg:#fef2f2; --red-bd:#fecaca; --red-tx:#b91c1c;
-
-      --primary:#2563eb;
-      --primary2:#1d4ed8;
-      --ink:#0f172a;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
-
     *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    header{
-      position:sticky;top:0;z-index:30;
-      background:var(--card);
-      border-bottom:1px solid var(--line);
-      padding:12px 16px;
-      display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;
-    }
-    header h1{margin:0;font-size:16px;font-weight:950;letter-spacing:.2px}
-    header .meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .muted{color:var(--muted);font-size:12px}
-    .tiny{font-size:11px;color:var(--muted)}
-    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;background:#f3f4f6;padding:2px 6px;border-radius:10px;border:1px solid #e5e7eb;font-size:12px}
-
-    main{padding:14px 16px;display:grid;grid-template-columns:420px 1fr;gap:14px;align-items:start}
-    @media (max-width:1100px){ main{grid-template-columns:1fr} }
-
-    .card{
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      padding:14px;
-      box-shadow:var(--shadow);
-    }
-    .sep{height:1px;background:var(--line2);margin:10px 0}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    @media (max-width:640px){ .grid2{grid-template-columns:1fr} }
-
-    input[type="file"]{width:100%}
-    input[type="text"]{
-      width:100%;padding:10px 10px;border:1px solid var(--line);
-      border-radius:12px;background:#fff;color:var(--text);
-    }
-    select{
-      padding:9px 10px;border:1px solid var(--line);
-      border-radius:12px;background:#fff;color:var(--text);
-      font:inherit;font-size:13px;
-    }
-
-    .btn{
-      border:1px solid var(--line);
-      background:#fff;
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background: radial-gradient(1200px 700px at 15% 10%, #142046 0%, transparent 60%),
+                  radial-gradient(900px 600px at 80% 35%, #1a2d66 0%, transparent 55%),
+                  var(--bg);
       color:var(--text);
-      border-radius:12px;
-      padding:9px 11px;
+    }
+    header{
+      position:sticky; top:0; z-index:5;
+      background: rgba(11,18,32,.8);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--border);
+    }
+    .wrap{
+      max-width: 1400px;
+      margin:0 auto;
+      padding:16px 18px;
+    }
+    .topbar{
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+    }
+    .brand{
+      display:flex; gap:10px; align-items:center;
+      min-width: 240px;
+    }
+    .logo{
+      width:34px; height:34px; border-radius:10px;
+      background: linear-gradient(135deg, #60a5fa 0%, #22c55e 60%, #f59e0b 100%);
+      box-shadow: var(--shadow);
+    }
+    .title{
+      display:flex; flex-direction:column;
+      line-height:1.15;
+    }
+    .title b{font-size:14px}
+    .title span{font-size:12px;color:var(--muted)}
+    .controls{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .control{
+      display:flex; align-items:center; gap:8px;
+      padding:10px 12px;
+      background: rgba(15,23,42,.6);
+      border:1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.25);
+    }
+    .control label{font-size:12px;color:var(--muted)}
+    select,input{
+      background: transparent;
+      border: 0;
+      outline: none;
+      color: var(--text);
+      font-size: 13px;
+      min-width: 160px;
+    }
+    input::placeholder{color:#64748b}
+    .btn{
       cursor:pointer;
-      font-weight:900;
+      border:1px solid var(--border);
+      background: rgba(17,28,51,.6);
+      color: var(--text);
+      padding:10px 12px;
+      border-radius: 12px;
+      transition: transform .04s ease, background .15s ease;
       font-size:13px;
+      display:flex; align-items:center; gap:8px;
+      user-select:none;
     }
-    .btn.primary{background:var(--primary);border-color:transparent;color:#fff}
-    .btn.primary:hover{background:var(--primary2)}
-    .btn:disabled{opacity:.55;cursor:not-allowed}
-
-    .list{
-      max-height:220px;overflow:auto;
-      border:1px solid var(--line2);
-      border-radius:12px;
-      padding:8px;background:#fafafa;
+    .btn:active{transform: translateY(1px)}
+    .pill{
+      padding:6px 10px;
+      border-radius: 999px;
+      font-size:12px;
+      background: rgba(17,28,51,.6);
+      border:1px solid var(--border);
+      color: var(--muted);
+      display:flex; align-items:center; gap:8px;
     }
-    .item{display:flex;gap:8px;align-items:center;padding:6px 4px;border-radius:10px}
-    .item:hover{background:#f3f4f6}
-    .item label{cursor:pointer}
-
-    .kpis{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:10px}
-    @media (max-width:640px){ .kpis{grid-template-columns:1fr 1fr} }
-    .kpi{border:1px solid var(--line);border-radius:14px;padding:12px;min-height:76px}
-    .kpi .v{font-size:22px;font-weight:950}
-    .kpi .l{font-size:12px;color:var(--muted);margin-top:6px}
-
-    table{width:100%;border-collapse:collapse;font-size:14px}
-    thead{background:#f9fafb}
-    th{
-      text-align:left;padding:10px;
-      font-size:12px;text-transform:uppercase;letter-spacing:.05em;
-      color:#374151;border-bottom:1px solid var(--line);
-      position:sticky;top:0;z-index:5;
+    .dot{width:8px;height:8px;border-radius:999px;background:var(--idle)}
+    main .grid{
+      display:grid;
+      grid-template-columns: 380px 1fr;
+      gap:14px;
+      padding: 14px 18px 22px;
+      max-width:1400px;
+      margin:0 auto;
     }
-    td{padding:10px;border-bottom:1px solid var(--line2);vertical-align:top}
-    tr:hover{background:#f9fafb}
-    .tableWrap{max-height:420px;overflow:auto;border:1px solid var(--line2);border-radius:12px}
-
-    .hint{font-size:12px;line-height:1.35;color:var(--text);background:#f9fafb;border:1px solid var(--line2);padding:10px;border-radius:14px}
-    .warn{font-size:12px;line-height:1.35;color:var(--ink);background:#fff7ed;border:1px solid #fed7aa;padding:10px;border-radius:14px}
-
-    .svgwrap{width:100%;overflow:auto;border:1px solid var(--line2);border-radius:12px;background:#fff}
-    .dbg{font-size:12px;color:#374151;background:#f9fafb;border:1px solid var(--line2);padding:10px;border-radius:14px}
-    .err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px;border-radius:14px;font-size:12px;white-space:pre-wrap;display:none}
-
-    /* Semáforo % (pedido) */
+    @media (max-width: 1050px){
+      main .grid{grid-template-columns: 1fr}
+    }
+    .card{
+      background: rgba(15,23,42,.62);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card h2{
+      margin:0;
+      font-size:13px;
+      letter-spacing:.2px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .card h2 small{color:var(--muted); font-weight:500}
+    .sidebar{
+      max-height: calc(100vh - 110px);
+      overflow:auto;
+    }
+    .tree{
+      padding: 10px 10px 14px;
+    }
+    details{
+      border:1px solid rgba(31,42,68,.65);
+      border-radius: 12px;
+      background: rgba(11,19,36,.55);
+      margin:10px 0;
+      overflow:hidden;
+    }
+    summary{
+      list-style:none;
+      cursor:pointer;
+      padding: 10px 12px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+    }
+    summary::-webkit-details-marker{display:none}
+    .sum-left{display:flex; align-items:center; gap:10px; min-width:0}
+    .caret{
+      width: 9px; height: 9px;
+      border-right:2px solid var(--muted);
+      border-bottom:2px solid var(--muted);
+      transform: rotate(-45deg);
+      opacity:.9;
+    }
+    details[open] .caret{transform: rotate(45deg)}
+    .node-title{
+      font-size:13px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .meta{
+      display:flex; align-items:center; gap:8px;
+      color:var(--muted);
+      font-size:12px;
+      flex-shrink:0;
+    }
     .pct{
-      font-weight:950;
-      padding:4px 10px;
-      border-radius:999px;
-      display:inline-block;
-      font-size:13px;
-      border:1px solid transparent;
+      font-family: var(--mono);
+      font-size:12px;
+      padding:4px 8px;
+      border-radius: 999px;
+      border:1px solid rgba(31,42,68,.9);
+      background: rgba(17,28,51,.6);
+      min-width:72px;
+      text-align:right;
+    }
+    .pct.ok{border-color: rgba(34,197,94,.35); color:#bbf7d0}
+    .pct.warn{border-color: rgba(245,158,11,.35); color:#fde68a}
+    .pct.idle{border-color: rgba(148,163,184,.25); color:#cbd5e1}
+    .pct.err{border-color: rgba(239,68,68,.35); color:#fecaca}
+    .children{
+      padding: 8px 10px 10px 22px;
+      border-top: 1px solid rgba(31,42,68,.55);
+      background: rgba(8,14,28,.35);
+    }
+    .child{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:8px 10px;
+      border:1px solid rgba(31,42,68,.55);
+      border-radius: 12px;
+      margin:8px 0;
+      gap:10px;
+    }
+    .child .left{
+      display:flex; align-items:center; gap:10px; min-width:0;
+    }
+    .chip{
+      font-size:11px;
+      padding:5px 8px;
+      border-radius: 999px;
+      border:1px solid rgba(31,42,68,.75);
+      background: rgba(17,28,51,.55);
+      color: var(--muted);
+    }
+    .badge{
+      font-family: var(--mono);
+      font-size:11px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      border:1px solid rgba(31,42,68,.75);
+      background: rgba(17,28,51,.55);
+      color: var(--muted);
+    }
+    .badge.ok{border-color: rgba(34,197,94,.35); color:#bbf7d0}
+    .badge.warn{border-color: rgba(245,158,11,.35); color:#fde68a}
+    .badge.err{border-color: rgba(239,68,68,.35); color:#fecaca}
+    .badge.idle{border-color: rgba(148,163,184,.25); color:#cbd5e1}
+    .tablewrap{
+      overflow:auto;
+      max-height: calc(100vh - 110px);
+    }
+    table{
+      width:100%;
+      border-collapse: collapse;
+      min-width: 1100px;
+      font-size: 12px;
+    }
+    thead th{
+      position: sticky; top:0;
+      background: rgba(11,18,32,.92);
+      backdrop-filter: blur(8px);
+      text-align:left;
+      padding:10px 10px;
+      border-bottom:1px solid var(--border);
+      color:#cbd5e1;
+      font-weight:600;
       white-space:nowrap;
     }
-    .pct-red{background:var(--red-bg);color:var(--red-tx);border-color:var(--red-bd)}
-    .pct-yellow{background:var(--yellow-bg);color:var(--yellow-tx);border-color:var(--yellow-bd)}
-    .pct-green{background:var(--green-bg);color:var(--green-tx);border-color:var(--green-bd)}
-
-    /* Accesibilidad */
-    .sr{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;}
-    .chip{
-      display:inline-flex;align-items:center;gap:6px;
-      padding:6px 10px;border-radius:999px;border:1px solid var(--line);
-      background:#fff;font-size:12px;font-weight:800;color:#111827;
+    tbody td{
+      padding:9px 10px;
+      border-bottom:1px solid rgba(31,42,68,.45);
+      color:#e2e8f0;
+      vertical-align: middle;
+      white-space:nowrap;
+    }
+    tbody tr:hover{background: rgba(96,165,250,.06)}
+    .mono{font-family: var(--mono)}
+    .muted{color: var(--muted)}
+    .right{text-align:right}
+    .progressbar{
+      width: 110px;
+      height: 8px;
+      border-radius: 999px;
+      border:1px solid rgba(31,42,68,.8);
+      background: rgba(17,28,51,.55);
+      overflow:hidden;
+      display:inline-block;
+      vertical-align:middle;
+      margin-right:8px;
+    }
+    .progressbar > i{
+      display:block;
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, #60a5fa 0%, #22c55e 70%);
+    }
+    .rowStatus{
+      display:flex; align-items:center; gap:8px;
+    }
+    .statusDot{
+      width:8px;height:8px;border-radius:999px;background:var(--idle);
+    }
+    .statusDot.ok{background:var(--ok)}
+    .statusDot.warn{background:var(--warn)}
+    .statusDot.err{background:var(--err)}
+    .statusDot.idle{background:var(--idle)}
+    .small{font-size:11px}
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      padding: 10px 14px;
+      border-top:1px solid var(--border);
+      background: rgba(11,19,36,.35);
+    }
+    a{color:#93c5fd}
+    code{
+      font-family: var(--mono);
+      font-size: 12px;
+      background: rgba(17,28,51,.6);
+      border:1px solid rgba(31,42,68,.7);
+      padding:2px 6px;
+      border-radius: 8px;
     }
   </style>
 </head>
-
 <body>
 <header>
-  <div class="row" style="gap:10px">
-    <h1>Migration Status Portal</h1>
-    <span class="chip" id="status">Sin archivo</span>
-  </div>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo"></div>
+        <div class="title">
+          <b>Runs Monitor</b>
+          <span id="subtitle">Dashboard de ejecuciones (árbol + grilla)</span>
+        </div>
+      </div>
 
-  <div class="meta">
-    <span class="muted">Persistencia: <b>Local</b> + Export/Import JSON</span>
-    <span class="muted">Tip: <span class="kbd">Ctrl</span> + <span class="kbd">F</span> para buscar en tabla del navegador</span>
+      <div class="controls">
+        <div class="control">
+          <label for="runSelect">Run</label>
+          <select id="runSelect"></select>
+        </div>
+
+        <div class="control">
+          <label for="q">Buscar</label>
+          <input id="q" placeholder="block, data object, table..." />
+        </div>
+
+        <button class="btn" id="refreshBtn" title="Refrescar ahora">
+          ⟳ Refrescar
+        </button>
+
+        <div class="pill" title="Estado de actualización">
+          <span class="dot" id="liveDot"></span>
+          <span id="liveText">listo</span>
+        </div>
+      </div>
+    </div>
   </div>
 </header>
 
 <main>
-  <!-- CONTROLES -->
-  <section class="card" aria-label="Controles">
-    <div class="row">
-      <input id="file" type="file" accept=".xlsx,.xls" />
-    </div>
-
-    <div class="sep"></div>
-
-    <div class="row">
-      <button class="btn" id="selectAll" disabled>Seleccionar todo</button>
-      <button class="btn" id="selectNone" disabled>Seleccionar nada</button>
-      <button class="btn primary" id="apply" disabled>Aplicar</button>
-      <button class="btn" id="download" disabled>Descargar HTML (curvas + GLS)</button>
-    </div>
-
-    <div class="sep"></div>
-
-    <div class="row">
-      <button class="btn" id="saveProfile" disabled>Guardar perfil</button>
-      <button class="btn" id="loadProfile" disabled>Cargar perfil</button>
-      <input id="profileFile" type="file" accept="application/json" style="display:none" />
-      <button class="btn" id="exportLog" disabled>Export log</button>
-      <button class="btn" id="clearLog" disabled>Limpiar log</button>
-    </div>
-
-    <div class="sep"></div>
-
-    <div class="grid2">
-      <div>
-        <div class="muted"><b>Type</b></div>
-        <div class="list" id="types"></div>
+  <div class="grid">
+    <section class="card sidebar">
+      <h2>
+        <span>Árbol</span>
+        <small id="treeMeta">—</small>
+      </h2>
+      <div class="tree" id="tree"></div>
+      <div class="hint">
+        Fuente: <code>./tasks.json</code> (si no existe, usa demo).<br/>
+        Tip: para producción, apuntá <code>DATA_URL</code> a tu API.
       </div>
+    </section>
 
-      <div>
-        <div class="muted"><b>Run name</b></div>
-        <input id="qRuns" type="text" placeholder="Buscar run…" />
-        <div style="height:6px"></div>
-        <div class="list" id="runs"></div>
-        <div class="tiny">Las curvas se calculan solo con los runs seleccionados.</div>
-      </div>
-    </div>
-
-    <div class="sep"></div>
-
-    <div class="grid2">
-      <div>
-        <div class="muted"><b>Module ID</b></div>
-        <input id="qModules" type="text" placeholder="Buscar módulo…" />
-        <div style="height:6px"></div>
-        <div class="list" id="modules"></div>
-      </div>
-
-      <div>
-        <div class="muted"><b>Data object</b></div>
-        <input id="qObjects" type="text" placeholder="Buscar objeto…" />
-        <div style="height:6px"></div>
-        <div class="list" id="objects"></div>
-      </div>
-    </div>
-
-    <div class="sep"></div>
-
-    <div class="muted"><b>Table Groups</b></div>
-    <input id="qTables" type="text" placeholder="Buscar grupo… ej: BUT*, /SNP/*, Z*" />
-    <div style="height:6px"></div>
-    <div class="list" id="tableGroups"></div>
-
-    <div class="sep"></div>
-
-    <div class="hint">
-      <b>Curvas:</b> usan <b>End date/time</b> o <b>Start + Real runtime</b>. Filas sin tiempo suficiente no se grafican.<br/>
-      <b>100% real:</b> este portal muestra 1 decimal y <b>no redondea hacia arriba</b> (evita “100%” falso).
-    </div>
-
-    <div style="height:10px"></div>
-    <div id="errors" class="err"></div>
-  </section>
-
-  <!-- DASHBOARD -->
-  <section aria-label="Dashboard">
-    <div class="kpis" id="kpis"></div>
-
-    <div style="height:10px"></div>
-
-    <div class="card">
-      <div style="font-weight:950;font-size:16px">Curva de evolución (por Run name)</div>
-      <div class="muted" id="curveMeta"></div>
-      <div style="height:10px"></div>
-      <div class="svgwrap" id="curve"></div>
-
-      <div class="sep"></div>
-      <div class="dbg" id="curveDbg"></div>
-    </div>
-
-    <div style="height:10px"></div>
-
-    <div class="card">
-      <div style="font-weight:950;font-size:16px">Curva por hora (cliente)</div>
-      <div class="muted" id="hourlyMeta"></div>
-      <div style="height:10px"></div>
-      <div class="svgwrap" id="curveHourly"></div>
-      <div class="sep"></div>
-      <div class="warn">Agrupa avance acumulado por <b>hora</b> (según fin del step).</div>
-    </div>
-
-    <div style="height:10px"></div>
-
-    <div class="card">
-      <div style="font-weight:950;font-size:16px">Migration Status (por Módulo)</div>
-      <div class="muted" id="glsMeta"></div>
-      <div style="height:10px"></div>
-
-      <div class="tableWrap">
+    <section class="card">
+      <h2>
+        <span>Detalle</span>
+        <small id="tableMeta">—</small>
+      </h2>
+      <div class="tablewrap">
         <table>
           <thead>
             <tr>
-              <th>Module</th>
-              <th>Stage</th>
-              <th>%</th>
+              <th>Status</th>
+              <th>Type</th>
+              <th>Source</th>
+              <th>Target</th>
+              <th>Folder</th>
+              <th>Run name</th>
+              <th>Block</th>
+              <th>Module ID</th>
+              <th>Data object</th>
+              <th>Table</th>
+              <th class="right"># records</th>
+              <th>Progress</th>
+              <th class="right">Real runtime</th>
+              <th class="right">Process runtime</th>
+              <th class="right">Prep runtime</th>
+              <th class="right">Updated</th>
             </tr>
           </thead>
-          <tbody id="glsRows"></tbody>
+          <tbody id="tbody"></tbody>
         </table>
       </div>
-
-      <div class="sep"></div>
-      <div class="tiny">Semáforo: &lt;50% rojo | 50–80% amarillo | &gt;80% verde</div>
-    </div>
-    <div style="height:10px"></div>
-
-<div class="card">
-  <div class="row" style="justify-content:space-between">
-    <div>
-      <div style="font-weight:950;font-size:16px">Status de todos los objetos</div>
-      <div class="muted" id="objMeta"></div>
-    </div>
-    <div style="min-width:240px">
-      <input id="qObjTable" type="text" placeholder="Buscar (objeto, run, módulo)..." />
-    </div>
+      <div class="hint" id="footerHint"></div>
+    </section>
   </div>
-<div style="height:10px"></div>
-
-<div class="row" style="gap:12px">
-  <label class="chip"><input type="checkbox" id="fOK" checked /> OK (&gt;80%)</label>
-  <label class="chip"><input type="checkbox" id="fRUN" checked /> EN CURSO (50–80%)</label>
-  <label class="chip"><input type="checkbox" id="fCRIT" checked /> CRÍTICO (&lt;50%)</label>
-</div>
-  <div style="height:10px"></div>
-
-  <div class="tableWrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Run</th>
-          <th>Module</th>
-          <th>Object</th>
-          <th>Steps</th>
-          <th>Done</th>
-          <th>%</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="objRows"></tbody>
-    </table>
-  </div>
-
-  <div class="sep"></div>
-  <div class="tiny">Esta tabla RESPETA tus filtros. Si desactivás un módulo u objeto, desaparece.</div>
-</div>
-  </section>
 </main>
 
 <script>
-(function(){
-  // ===============================
-  // CONFIG: Columnas esperadas
-  // ===============================
-  var COL = {
-    type: "Type",              // EXP / IMP
-    runName: "Run name",
-    module: "Module ID",
-    object: "Data object",
-    table: "Table",
-    progress: "Progress",
-    startDate: "Start date",
-    startTime: "Start time",
-    endDate: "End date",
-    endTime: "End time",
-    realRuntime: "Real runtime"
-  };
+/**
+ * CONFIG
+ * - Si vas a tener una API, cambialo a: const DATA_URL = "https://tu-api.com/tasks?project=xxx"
+ * - Para demo local: tasks.json al lado de index.html
+ */
+const DATA_URL = "./tasks.json";
+const REFRESH_EVERY_MS = 3500;
 
-  function el(id){ return document.getElementById(id); }
+let ALL = [];
+let CURRENT_RUN = "ALL";
 
-  var state = { raw: [], last: null };
+function nowISO(){ return new Date().toISOString(); }
 
-  // ===============================
-  // Persistencia + Log (para PMs)
-  // ===============================
-  var STORAGE_KEY = "migration_portal_profile_v1";
-  var LOG_KEY = "migration_portal_log_v1";
+function toPctNumber(p){
+  if (p == null) return 0;
+  const s = String(p).trim();
+  if (!s) return 0;
+  return Number(s.replace("%","")) || 0;
+}
+function fmtPct(n){ return (Math.round(n*10)/10).toFixed(1) + "%"; }
 
-  function nowISO(){ return new Date().toISOString(); }
-
-  function pushLog(action, extra){
-    try{
-      var arr = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
-      arr.push({ t: nowISO(), action: action, extra: extra || null });
-      if(arr.length > 2000) arr = arr.slice(arr.length-2000);
-      localStorage.setItem(LOG_KEY, JSON.stringify(arr));
-    }catch(e){}
+function toSec(val){
+  if (val == null) return 0;
+  if (typeof val === "number") return val;
+  const s = String(val).trim();
+  // soporta "HH:MM:SS" o "MM:SS"
+  if (/^\d{1,2}:\d{2}:\d{2}$/.test(s)){
+    const [h,m,sec] = s.split(":").map(Number);
+    return h*3600 + m*60 + sec;
   }
-
-  function exportJSON(filename, obj){
-    var blob = new Blob([JSON.stringify(obj, null, 2)], {type:"application/json;charset=utf-8"});
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(a.href);
+  if (/^\d{1,2}:\d{2}$/.test(s)){
+    const [m,sec] = s.split(":").map(Number);
+    return m*60 + sec;
   }
+  return Number(s) || 0;
+}
+function fmtHMS(sec){
+  sec = Math.max(0, Math.round(sec||0));
+  const h = String(Math.floor(sec/3600)).padStart(2,"0");
+  const m = String(Math.floor((sec%3600)/60)).padStart(2,"0");
+  const s = String(sec%60).padStart(2,"0");
+  return `${h}:${m}:${s}`;
+}
 
-  function importJSON(file, cb){
-    var r = new FileReader();
-    r.onload = function(){
-      try{ cb(JSON.parse(String(r.result || "{}"))); }
-      catch(e){ showError("JSON inválido: " + e.message); }
-    };
-    r.readAsText(file);
+function statusFromProgress(pct){
+  // si te llega status real, lo podés priorizar
+  if (pct >= 100) return "CO";
+  if (pct > 0) return "PN";
+  return "PE";
+}
+function statusClass(status){
+  if (status === "ER") return "err";
+  if (status === "CO") return "ok";
+  if (status === "PN") return "warn";
+  return "idle";
+}
+
+function pctClass(pct, hasError=false){
+  if (hasError) return "err";
+  if (pct >= 100) return "ok";
+  if (pct > 0) return "warn";
+  return "idle";
+}
+
+function uniq(arr){ return [...new Set(arr)]; }
+
+function setLive(state, text){
+  const dot = document.getElementById("liveDot");
+  const t = document.getElementById("liveText");
+  dot.style.background =
+    state === "ok" ? "var(--ok)" :
+    state === "warn" ? "var(--warn)" :
+    state === "err" ? "var(--err)" : "var(--idle)";
+  t.textContent = text;
+}
+
+async function fetchData(){
+  setLive("warn","actualizando...");
+  try{
+    const res = await fetch(DATA_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    setLive("ok","listo");
+    return normalize(data);
+  }catch(e){
+    // fallback demo
+    setLive("err","demo (sin tasks.json)");
+    return normalize(getDemo());
   }
+}
 
-  function saveProfileLocal(){
-    if(!state.raw.length) return;
+function normalize(rows){
+  // rows puede ser {tasks:[...]} o [...]
+  const list = Array.isArray(rows) ? rows : (rows.tasks || []);
+  return list.map((r, idx) => {
+    const progress = toPctNumber(r.progress ?? r.Progress ?? r.PROGRESS);
+    const records = Number(r.number_of_records ?? r.records_count ?? r["Number of rec."] ?? 0) || 0;
 
-    var payload = {
-      version: 1,
-      saved_at: nowISO(),
-      groups: {
-        type: Object.keys(readChecked("type")),
-        run: Object.keys(readChecked("run")),
-        module: Object.keys(readChecked("module")),
-        object: Object.keys(readChecked("object")),
-        tgroup: Object.keys(readChecked("tgroup"))
-      }
-    };
+    const realSec = toSec(r.runtime_real_sec ?? r.real_runtime ?? r["Real runtim."] ?? r["Real runtime"]);
+    const procSec = toSec(r.runtime_process_sec ?? r.process_runtime ?? r["Process ru."] ?? r["Process runtime"]);
+    const prepSec = toSec(r.runtime_prep_sec ?? r.prep_runtime ?? r["Preparati"] ?? r["Preparation"]);
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    pushLog("save_profile_local", { counts:{
-      type: payload.groups.type.length,
-      run: payload.groups.run.length,
-      module: payload.groups.module.length,
-      object: payload.groups.object.length,
-      tgroup: payload.groups.tgroup.length
-    }});
-  }
-
-  function applyCheckedSet(groupKey, allowedSet){
-    var inputs = document.querySelectorAll('input[type="checkbox"][data-group="' + groupKey + '"]');
-    for(var i=0;i<inputs.length;i++){
-      var v = inputs[i].getAttribute("data-value");
-      inputs[i].checked = !!allowedSet[v];
-    }
-  }
-
-  function loadProfileFromObj(p){
-    if(!p || !p.groups) return false;
-    var s;
-
-    s = {}; (p.groups.type||[]).forEach(function(v){ s[v]=true; });   applyCheckedSet("type", s);
-    s = {}; (p.groups.run||[]).forEach(function(v){ s[v]=true; });    applyCheckedSet("run", s);
-    s = {}; (p.groups.module||[]).forEach(function(v){ s[v]=true; }); applyCheckedSet("module", s);
-    s = {}; (p.groups.object||[]).forEach(function(v){ s[v]=true; }); applyCheckedSet("object", s);
-    s = {}; (p.groups.tgroup||[]).forEach(function(v){ s[v]=true; }); applyCheckedSet("tgroup", s);
-
-    pushLog("load_profile", { saved_at: p.saved_at || null });
-    return true;
-  }
-
-  function loadProfileLocal(){
-    var raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw) return false;
-    try{
-      return loadProfileFromObj(JSON.parse(raw));
-    }catch(e){ return false; }
-  }
-
-  // ===============================
-  // UI helpers
-  // ===============================
-  function showError(msg){
-    var box = el("errors");
-    box.style.display = "";
-    box.textContent = msg;
-  }
-  function clearError(){
-    var box = el("errors");
-    box.style.display = "none";
-    box.textContent = "";
-  }
-
-  function uniq(arr){
-    var set = {};
-    var out = [];
-    for(var i=0;i<arr.length;i++){
-      var v = arr[i];
-      if(v === null || v === undefined) continue;
-      v = String(v).trim();
-      if(!v) continue;
-      if(!set[v]){ set[v]=true; out.push(v); }
-    }
-    out.sort(function(a,b){ return a.localeCompare(b); });
-    return out;
-  }
-
-  // % con 1 decimal SIN redondear hacia arriba (evita 100% falso)
-  function pct(n){
-    if(!isFinite(n)) return "0.0%";
-    var v = Math.floor(n*1000)/10;
-    return v.toFixed(1) + "%";
-  }
-
-  function parseProgress(v){
-    if (v === null || v === undefined) return null;
-    var s = String(v).trim();
-    if(!s) return null;
-
-    var up = s.toUpperCase();
-    if (up === "DONE" || up === "FINISHED" || up === "OK" || up === "SUCCESS") return 100;
-
-    s = s.replace("%","").trim().replace(",", ".");
-    var n = Number(s);
-    return isFinite(n) ? n : null;
-  }
-
-  function isDoneRow(r){
-    var pr = parseProgress(r[COL.progress]);
-    return (pr !== null && pr >= 100);
-  }
-
-  function tableGroupName(table){
-    var s = String(table === null || table === undefined ? "" : table).trim();
-    if(!s) return "";
-    if(s.indexOf("/") === 0){
-      var parts = s.split("/");
-      var p = "";
-      for(var i=0;i<parts.length;i++){
-        if(parts[i]){ p = parts[i]; break; }
-      }
-      if(!p) p = "SLASH";
-      return "/" + p + "/*";
-    }
-    if(/^Z/i.test(s)) return "Z*";
-    if(/^Y/i.test(s)) return "Y*";
-    var m = s.match(/^[A-Za-z]{3}/);
-    return m ? (m[0].toUpperCase() + "*") : "OTROS";
-  }
-
-  function mkChecklist(containerId, values, groupKey){
-    var html = "";
-    for(var i=0;i<values.length;i++){
-      var v = values[i];
-      var id = groupKey + "__" + encodeURIComponent(v);
-      html += '<div class="item" data-text="' + encodeURIComponent(v.toLowerCase()) + '">';
-      html += '<input type="checkbox" id="' + id + '" data-group="' + groupKey + '" data-value="' + v + '" checked />';
-      html += '<label for="' + id + '">' + v + '</label>';
-      html += "</div>";
-    }
-    el(containerId).innerHTML = html;
-  }
-
-  function readChecked(groupKey){
-    var inputs = document.querySelectorAll('input[type="checkbox"][data-group="' + groupKey + '"]');
-    var set = {};
-    for(var i=0;i<inputs.length;i++){
-      if(inputs[i].checked){
-        set[inputs[i].getAttribute("data-value")] = true;
-      }
-    }
-    return set;
-  }
-
-  function setAll(checked){
-    var inputs = document.querySelectorAll('input[type="checkbox"][data-group]');
-    for(var i=0;i<inputs.length;i++){
-      inputs[i].checked = checked;
-    }
-  }
-
-  function applySearch(inputId, listId){
-    var q = String(el(inputId).value || "").toLowerCase().trim();
-    var items = el(listId).querySelectorAll(".item");
-    for(var i=0;i<items.length;i++){
-      var txt = decodeURIComponent(items[i].getAttribute("data-text") || "");
-      items[i].style.display = (!q || txt.indexOf(q) >= 0) ? "" : "none";
-    }
-  }
-
-  // ===============================
-  // Curvas: tiempos
-  // ===============================
-  function pad2(n){ return (n<10?"0":"") + n; }
-  function fmtTick(dt){ return pad2(dt.getDate()) + "/" + pad2(dt.getMonth()+1) + " " + pad2(dt.getHours()) + ":00"; }
-  function hourlyTicks(minT, maxT){
-    var HOUR = 3600*1000;
-    var start = Math.ceil(minT / HOUR) * HOUR;
-    var out = [];
-    for(var t = start; t <= maxT; t += HOUR) out.push(t);
-    return out;
-  }
-
-  // Excel dates
-  function excelDateToJS(n){
-    if (typeof XLSX !== "undefined" && XLSX.SSF && XLSX.SSF.parse_date_code) {
-      var o = XLSX.SSF.parse_date_code(n);
-      if(o) return new Date(o.y, o.m-1, o.d, o.H||0, o.M||0, o.S||0);
-    }
-    var epoch = new Date(Date.UTC(1899, 11, 30));
-    return new Date(epoch.getTime() + n * 86400 * 1000);
-  }
-
-  function parseTimeParts(t){
-    if(t === null || t === undefined) return null;
-
-    if(typeof t === "number" && isFinite(t)){
-      var sec = Math.round(t * 86400);
-      var hh = Math.floor(sec/3600);
-      var mm = Math.floor((sec%3600)/60);
-      var ss = sec%60;
-      return {hh:hh, mm:mm, ss:ss};
-    }
-
-    var s = String(t).trim();
-    if(!s) return null;
-    var m = s.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
-    if(!m) return null;
-    return {hh:Number(m[1]), mm:Number(m[2]), ss:Number(m[3])};
-  }
-
-  function parseDateOnly(d){
-    if(d === null || d === undefined) return null;
-
-    if(typeof d === "number" && isFinite(d)){
-      var dd = excelDateToJS(d);
-      return new Date(dd.getFullYear(), dd.getMonth(), dd.getDate());
-    }
-
-    if(d instanceof Date && !isNaN(d)){
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    }
-
-    var s = String(d).trim();
-    if(!s) return null;
-
-    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if(m) return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
-
-    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); // DD/MM/YYYY
-    if(m) return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
-
-    return null;
-  }
-
-  function parseDateTime(d, t){
-    var dateObj = parseDateOnly(d);
-    var tp = parseTimeParts(t);
-    if(!dateObj || !tp) return null;
-    var dt = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), tp.hh, tp.mm, tp.ss);
-    return isNaN(dt) ? null : dt;
-  }
-
-  function parseRuntimeSeconds(v){
-    if(v === null || v === undefined) return null;
-
-    if(typeof v === "number" && isFinite(v)){
-      return Math.max(0, Math.round(v * 86400));
-    }
-
-    var s = String(v).trim();
-    if(!s) return null;
-
-    var m = s.match(/^(\d{1,3}):(\d{2}):(\d{2})$/);
-    if(!m) return null;
-    return Number(m[1])*3600 + Number(m[2])*60 + Number(m[3]);
-  }
-
-  // ===============================
-  // Filtros -> filas
-  // ===============================
-  function filterRows(){
-    var types   = readChecked("type");
-    var runs    = readChecked("run");
-    var modules = readChecked("module");
-    var objects = readChecked("object");
-    var tgroups = readChecked("tgroup");
-
-    var out = [];
-    for(var i=0;i<state.raw.length;i++){
-      var r = state.raw[i];
-      var type = String(r[COL.type] || "").trim();
-      var run  = String(r[COL.runName] || "").trim();
-      var mod  = String(r[COL.module] || "").trim();
-      var obj  = String(r[COL.object] || "").trim();
-      var tab  = String(r[COL.table] || "").trim();
-      if(!type || !run || !mod || !obj || !tab) continue;
-
-      var tg = tableGroupName(tab);
-      if(types[type] && runs[run] && modules[mod] && objects[obj] && tgroups[tg]){
-        out.push(r);
-      }
-    }
-    return out;
-  }
-
-  // ===============================
-  // KPIs (ponderado por steps/filas)
-  // ===============================
-  function computeKPIsWeighted(rows){
-    var totalAll = { EXP:0, IMP:0 };
-    var doneAll  = { EXP:0, IMP:0 };
-
-    for(var i=0;i<rows.length;i++){
-      var tp = String(rows[i][COL.type]||"").trim().toUpperCase();
-      if(tp!=="EXP" && tp!=="IMP") continue;
-      totalAll[tp] += 1;
-      if(isDoneRow(rows[i])) doneAll[tp] += 1;
-    }
-
-    var expPct = totalAll.EXP ? (doneAll.EXP/totalAll.EXP) : 0;
-    var impPct = totalAll.IMP ? (doneAll.IMP/totalAll.IMP) : 0;
-    var denom = (totalAll.EXP && totalAll.IMP) ? 2 : ((totalAll.EXP || totalAll.IMP) ? 1 : 1);
-    var totalPct = (expPct + impPct)/denom;
+    const status = (r.status ?? r.Status ?? statusFromProgress(progress)) + "";
 
     return {
-      expPct: expPct, impPct: impPct, totalPct: totalPct,
-      expDone: doneAll.EXP, expTotal: totalAll.EXP,
-      impDone: doneAll.IMP, impTotal: totalAll.IMP
+      id: r.id ?? `${r.run_name||r["Run name"]||"run"}-${idx}`,
+      type: r.type ?? r.Type ?? "",
+      source_system: r.source_system ?? r["Source syst."] ?? r.source ?? "",
+      target_system: r.target_system ?? r["Target syst."] ?? r.target ?? "",
+      folder: r.folder ?? r.Folder ?? "",
+      run_name: r.run_name ?? r["Run name"] ?? "",
+      block: r.block ?? r.Block ?? "",
+      module_id: r.module_id ?? r["Module ID"] ?? "",
+      data_object: r.data_object ?? r["Data object"] ?? "",
+      table_name: r.table_name ?? r.Table ?? "",
+      status,
+      progress,          // 0..100
+      records_count: records,
+      runtime_real_sec: realSec,
+      runtime_process_sec: procSec,
+      runtime_prep_sec: prepSec,
+      updated_at: r.updated_at ?? r.Updated ?? nowISO()
     };
+  });
+}
+
+function applyFilters(){
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  let rows = ALL;
+
+  if (CURRENT_RUN !== "ALL"){
+    rows = rows.filter(r => r.run_name === CURRENT_RUN);
   }
-
-  // ===============================
-  // Curva por run (EXP/IMP/Total)
-  // ===============================
-  function buildEvolutionSeries(rows){
-    var kpi = computeKPIsWeighted(rows);
-
-    var events = [];
-    var dbg = {
-      totalRows: rows.length,
-      totalEXP: kpi.expTotal,
-      totalIMP: kpi.impTotal,
-      withEnd:0,
-      withStartRuntime:0,
-      skipped:0
-    };
-
-    for(var i=0;i<rows.length;i++){
-      var r = rows[i];
-      var type = String(r[COL.type] || "").trim().toUpperCase();
-      if(type !== "EXP" && type !== "IMP") continue;
-
-      var end = parseDateTime(r[COL.endDate], r[COL.endTime]);
-      if(end){
-        dbg.withEnd += 1;
-        events.push({ t:end, type:type, done:isDoneRow(r) });
-        continue;
-      }
-
-      var start = parseDateTime(r[COL.startDate], r[COL.startTime]);
-      var durS  = parseRuntimeSeconds(r[COL.realRuntime]);
-      if(start && durS !== null){
-        dbg.withStartRuntime += 1;
-        events.push({ t:new Date(start.getTime() + durS*1000), type:type, done:isDoneRow(r) });
-        continue;
-      }
-
-      dbg.skipped += 1;
-    }
-
-    events.sort(function(a,b){ return a.t - b.t; });
-
-    var doneAcc = { EXP:0, IMP:0 };
-    var series = [];
-
-    for(var j=0;j<events.length;j++){
-      var e = events[j];
-      if(e.done) doneAcc[e.type] += 1;
-
-      var expPct = kpi.expTotal ? (doneAcc.EXP / kpi.expTotal) : 0;
-      var impPct = kpi.impTotal ? (doneAcc.IMP / kpi.impTotal) : 0;
-
-      var denom = (kpi.expTotal && kpi.impTotal) ? 2 : ((kpi.expTotal || kpi.impTotal) ? 1 : 1);
-      var totalPct = (expPct + impPct) / denom;
-
-      series.push({ t:e.t, expPct:expPct, impPct:impPct, totalPct:totalPct });
-    }
-
-    return { series: series, dbg: dbg, eventsCount: events.length };
-  }
-
-  function renderCurve(series){
-    if(!series.length){
-      el("curveMeta").textContent = "Sin curva: no hay filas con End date/time o Start+Runtime (en el filtro actual).";
-      el("curve").innerHTML = "";
-      return;
-    }
-
-    var minT = series[0].t.getTime();
-    var maxT = series[series.length-1].t.getTime();
-    var span = Math.max(1, maxT - minT);
-
-    var W = 980, H = 320, padL=54, padR=20, padT=18, padB=78;
-
-    function x(t){ return padL + ((t-minT)/span)*(W-padL-padR); }
-    function y(p){ return padT + (1-p)*(H-padT-padB); }
-
-    function pathFor(key){
-      var d = "";
-      for(var i=0;i<series.length;i++){
-        var px = x(series[i].t.getTime());
-        var py = y(series[i][key]);
-        d += (i===0 ? ("M " + px + " " + py) : (" L " + px + " " + py));
-      }
-      return d;
-    }
-
-    var runs = readChecked("run");
-    var runNames = Object.keys(runs); runNames.sort();
-    var runsLabel = runNames.length ? runNames.slice(0,8).join(", ") + (runNames.length>8 ? "…" : "") : "(sin run)";
-
-    var last = series[series.length-1];
-    el("curveMeta").textContent =
-      "Runs: " + runsLabel +
-      " | Desde " + series[0].t.toLocaleString("es-AR",{hour12:false}) +
-      " hasta " + last.t.toLocaleString("es-AR",{hour12:false}) +
-      " | Total " + pct(last.totalPct) +
-      " | EXP " + pct(last.expPct) +
-      " | IMP " + pct(last.impPct);
-
-    var grid = "";
-    var ps = [0,0.25,0.5,0.75,1];
-    for(var k=0;k<ps.length;k++){
-      var p = ps[k];
-      var yy = y(p);
-      grid += '<line x1="' + padL + '" y1="' + yy + '" x2="' + (W-padR) + '" y2="' + yy + '" stroke="#eef2f7"/>';
-      grid += '<text x="12" y="' + (yy+4) + '" font-size="11" fill="#6b7280">' + Math.round(p*100) + "%</text>";
-    }
-
-    var xgrid = "";
-    var ticks = hourlyTicks(minT, maxT);
-    for(var ti=0; ti<ticks.length; ti++){
-      var tx = x(ticks[ti]);
-      xgrid += '<line x1="' + tx + '" y1="' + (H-padB) + '" x2="' + tx + '" y2="' + (H-padB+6) + '" stroke="#e5e7eb"/>';
-      var lbl = fmtTick(new Date(ticks[ti]));
-      xgrid += '<text x="' + tx + '" y="' + (H-10) + '" font-size="10" fill="#6b7280" text-anchor="end" transform="rotate(-45 ' + tx + ' ' + (H-10) + ')">' + lbl + '</text>';
-    }
-
-    var svg = '';
-    svg += '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg">';
-    svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="white"/>';
-    svg += grid;
-    svg += xgrid;
-
-    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
-    svg += '<line x1="' + padL + '" y1="' + (H-padB) + '" x2="' + (W-padR) + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
-
-    svg += '<path d="' + pathFor("totalPct") + '" fill="none" stroke="#111827" stroke-width="2.6"/>';
-    svg += '<path d="' + pathFor("expPct") + '" fill="none" stroke="#2563eb" stroke-width="2.2"/>';
-    svg += '<path d="' + pathFor("impPct") + '" fill="none" stroke="#16a34a" stroke-width="2.2"/>';
-
-    svg += '<g font-size="12" fill="#111827">';
-    svg += '<circle cx="' + (padL+10) + '" cy="' + (padT+10) + '" r="4" fill="#111827"/><text x="' + (padL+20) + '" y="' + (padT+14) + '">Total</text>';
-    svg += '<circle cx="' + (padL+80) + '" cy="' + (padT+10) + '" r="4" fill="#2563eb"/><text x="' + (padL+90) + '" y="' + (padT+14) + '">Export</text>';
-    svg += '<circle cx="' + (padL+160) + '" cy="' + (padT+10) + '" r="4" fill="#16a34a"/><text x="' + (padL+170) + '" y="' + (padT+14) + '">Import</text>';
-    svg += '</g>';
-
-    svg += "</svg>";
-    el("curve").innerHTML = svg;
-  }
-
-  // ===============================
-  // Curva por hora (cliente)
-  // ===============================
-  function buildHourlySeries(rows){
-    var total = rows.length;
-    if(!total) return { series:[], minT:null, maxT:null, total:0, eventsUsed:0 };
-
-    var events = [];
-    for(var i=0;i<rows.length;i++){
-      var r = rows[i];
-
-      var dt = parseDateTime(r[COL.endDate], r[COL.endTime]);
-      if(!dt){
-        var st = parseDateTime(r[COL.startDate], r[COL.startTime]);
-        var dur = parseRuntimeSeconds(r[COL.realRuntime]);
-        if(st && dur !== null){
-          dt = new Date(st.getTime() + dur*1000);
-        }
-      }
-      if(!dt) continue;
-
-      events.push({ t:dt, done:isDoneRow(r) });
-    }
-
-    events.sort(function(a,b){ return a.t - b.t; });
-
-    var buckets = {};
-    var doneAcc = 0;
-
-    for(var j=0;j<events.length;j++){
-      if(events[j].done) doneAcc++;
-
-      var t = events[j].t;
-      var hour = new Date(t.getFullYear(), t.getMonth(), t.getDate(), t.getHours(), 0, 0, 0).getTime();
-      buckets[hour] = doneAcc;
-    }
-
-    var keys = Object.keys(buckets).map(function(k){ return Number(k); }).sort(function(a,b){ return a-b; });
-    var series = keys.map(function(ms){
-      return { t:new Date(ms), pct: buckets[ms] / total };
-    });
-
-    return {
-      series: series,
-      minT: series.length ? series[0].t : null,
-      maxT: series.length ? series[series.length-1].t : null,
-      total: total,
-      eventsUsed: events.length
-    };
-  }
-
-  function renderHourlyCurve(h){
-    var series = h.series;
-    if(!series.length){
-      el("hourlyMeta").textContent = "Sin curva horaria: no hay tiempos suficientes en el filtro actual.";
-      el("curveHourly").innerHTML = "";
-      return;
-    }
-
-    el("hourlyMeta").textContent =
-      "Horas: " + series.length +
-      " | Eventos usados: " + h.eventsUsed +
-      " | Total pasos (filas filtradas): " + h.total +
-      " | Desde " + h.minT.toLocaleString("es-AR",{hour12:false}) +
-      " hasta " + h.maxT.toLocaleString("es-AR",{hour12:false}) +
-      " | Último " + pct(series[series.length-1].pct);
-
-    var W = 980, H = 320, padL=54, padR=20, padT=18, padB=78;
-
-    function y(p){ return padT + (1-p)*(H-padT-padB); }
-
-    var grid = "";
-    var ps = [0,0.25,0.5,0.75,1];
-    for(var k=0;k<ps.length;k++){
-      var p = ps[k];
-      var yy = y(p);
-      grid += '<line x1="' + padL + '" y1="' + yy + '" x2="' + (W-padR) + '" y2="' + yy + '" stroke="#eef2f7"/>';
-      grid += '<text x="12" y="' + (yy+4) + '" font-size="11" fill="#6b7280">' + Math.round(p*100) + "%</text>";
-    }
-
-    var minT = series[0].t.getTime();
-    var maxT = series[series.length-1].t.getTime();
-    var span = Math.max(1, maxT - minT);
-    function x(t){ return padL + ((t-minT)/span)*(W-padL-padR); }
-
-    var xgrid = "";
-    var ticks = hourlyTicks(minT, maxT);
-    for(var ti=0; ti<ticks.length; ti++){
-      var tx = x(ticks[ti]);
-      xgrid += '<line x1="' + tx + '" y1="' + (H-padB) + '" x2="' + tx + '" y2="' + (H-padB+6) + '" stroke="#e5e7eb"/>';
-      var lbl = fmtTick(new Date(ticks[ti]));
-      xgrid += '<text x="' + tx + '" y="' + (H-10) + '" font-size="10" fill="#6b7280" text-anchor="end" transform="rotate(-45 ' + tx + ' ' + (H-10) + ')">' + lbl + '</text>';
-    }
-
-    var d = "";
-    for(var i=0;i<series.length;i++){
-      var px = x(series[i].t.getTime());
-      var py = y(series[i].pct);
-      d += (i===0 ? ("M " + px + " " + py) : (" L " + px + " " + py));
-    }
-
-    var svg = '';
-    svg += '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" xmlns="http://www.w3.org/2000/svg">';
-    svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="white"/>';
-    svg += grid;
-    svg += xgrid;
-
-    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
-    svg += '<line x1="' + padL + '" y1="' + (H-padB) + '" x2="' + (W-padR) + '" y2="' + (H-padB) + '" stroke="#e5e7eb"/>';
-    svg += '<path d="' + d + '" fill="none" stroke="#111827" stroke-width="2.6"/>';
-    svg += "</svg>";
-
-    el("curveHourly").innerHTML = svg;
-  }
-
-  // ===============================
-  // GLS por módulo (semáforo)
-  // ===============================
-  function pctColorClass(p){
-    if(p < 0.5) return "pct pct-red";
-    if(p >= 0.5 && p <= 0.8) return "pct pct-yellow";
-    return "pct pct-green";
-  }
-
-  function computeGLS(rows){
-    var map = {};
-    var keys = [];
-
-    for(var i=0;i<rows.length;i++){
-      var r = rows[i];
-      var stage = String(r[COL.type]||"").trim().toUpperCase();
-      if(stage !== "EXP" && stage !== "IMP") continue;
-
-      var moduleId = String(r[COL.module]||"").trim();
-      if(!moduleId) continue;
-
-      var key = moduleId + "||" + stage;
-      if(!map[key]){
-        map[key] = { module: moduleId, stage: stage, total: 0, done: 0 };
-        keys.push(key);
-      }
-
-      map[key].total += 1;
-      if(isDoneRow(r)) map[key].done += 1;
-    }
-
-    keys.sort(function(a,b){
-      var am = map[a].module, bm = map[b].module;
-      if(am !== bm) return am.localeCompare(bm);
-      // EXP primero
-      return (map[a].stage === "EXP" ? 0 : 1) - (map[b].stage === "EXP" ? 0 : 1);
-    });
-
-    return keys.map(function(k){
-      var g = map[k];
-      g.pct = g.total ? (g.done/g.total) : 0;
-      return g;
+  if (q){
+    rows = rows.filter(r => {
+      const hay = `${r.folder} ${r.run_name} ${r.block} ${r.module_id} ${r.data_object} ${r.table_name}`.toLowerCase();
+      return hay.includes(q);
     });
   }
+  return rows;
+}
 
-  function stageLabel(stage){
-    return (stage==="EXP") ? "EXPORT" : (stage==="IMP") ? "IMPORT" : stage;
+function buildRunSelect(){
+  const sel = document.getElementById("runSelect");
+  const runs = uniq(ALL.map(r => r.run_name).filter(Boolean)).sort();
+  sel.innerHTML = "";
+  const optAll = document.createElement("option");
+  optAll.value = "ALL";
+  optAll.textContent = "Todas";
+  sel.appendChild(optAll);
+
+  for (const rn of runs){
+    const o = document.createElement("option");
+    o.value = rn;
+    o.textContent = rn;
+    sel.appendChild(o);
   }
+  sel.value = CURRENT_RUN;
+}
 
-  function renderGLS(gls, filteredCount){
-    if(!gls.length){
-      el("glsRows").innerHTML = "<tr><td colspan='3' class='muted'>Sin datos</td></tr>";
-      el("glsMeta").textContent = "Módulos: 0 | Filas consideradas: " + (filteredCount||0);
-      return;
-    }
+function groupObjectPct(rows){
+  // Objeto = run + block + data_object (como hablamos)
+  const map = new Map();
 
-    // Agrupar por módulo para rowspan
-    var byModule = {};
-    for(var i=0;i<gls.length;i++){
-      var m = gls[i].module;
-      if(!byModule[m]) byModule[m]=[];
-      byModule[m].push(gls[i]);
-    }
-    var modules = Object.keys(byModule).sort(function(a,b){ return a.localeCompare(b); });
+  for (const t of rows){
+    const key = `${t.run_name}||${t.block}||${t.data_object}`;
+    const weight = Math.max(t.records_count || 0, 1);
+    const pct = Math.max(0, Math.min(100, t.progress || 0));
 
-    var html = "";
-    for(var mi=0; mi<modules.length; mi++){
-      var m = modules[mi];
-      var rows = byModule[m];
-
-      // ordenar EXPORT/IMPORT
-      rows.sort(function(a,b){
-        return (a.stage==="EXP" ? 0 : 1) - (b.stage==="EXP" ? 0 : 1);
+    if (!map.has(key)){
+      map.set(key, {
+        run_name: t.run_name,
+        block: t.block,
+        data_object: t.data_object,
+        sumW: 0,
+        sumWP: 0,
+        items: 0,
+        records_sum: 0,
+        has_error: false
       });
+    }
+    const g = map.get(key);
+    g.sumW += weight;
+    g.sumWP += pct * weight;
+    g.items += 1;
+    g.records_sum += (t.records_count || 0);
+    g.has_error ||= (String(t.status).toUpperCase() === "ER");
+  }
 
-      for(var r=0;r<rows.length;r++){
-        var row = rows[r];
-        var cls = pctColorClass(row.pct);
-        html += "<tr>";
-        if(r===0){
-          html += '<td rowspan="' + rows.length + '"><b>' + m + "</b></td>";
-        }
-        html += "<td>" + stageLabel(row.stage) + "</td>";
-        html += "<td><span class=\"" + cls + "\">" + pct(row.pct) + " <span class=\"muted\">(" + row.done + "/" + row.total + ")</span></span></td>";
-        html += "</tr>";
+  return [...map.values()].map(g => ({
+    ...g,
+    pct: g.sumW ? (g.sumWP / g.sumW) : 0
+  }));
+}
+
+function buildTree(rows){
+  const tree = document.getElementById("tree");
+  tree.innerHTML = "";
+
+  const meta = document.getElementById("treeMeta");
+  meta.textContent = `${rows.length} filas`;
+
+  // agregados
+  const objects = groupObjectPct(rows);
+
+  // estructura: run -> block -> objects
+  const byRun = new Map();
+  for (const o of objects){
+    const runKey = o.run_name || "—";
+    if (!byRun.has(runKey)) byRun.set(runKey, new Map());
+    const byBlock = byRun.get(runKey);
+    const blockKey = o.block || "—";
+    if (!byBlock.has(blockKey)) byBlock.set(blockKey, []);
+    byBlock.get(blockKey).push(o);
+  }
+
+  // ordenar
+  const runNames = [...byRun.keys()].sort();
+  for (const runName of runNames){
+    const runBlocks = byRun.get(runName);
+
+    // % run
+    const runObjs = [];
+    for (const arr of runBlocks.values()) runObjs.push(...arr);
+    const runHasError = runObjs.some(x => x.has_error);
+    const runPct = runObjs.length ? runObjs.reduce((a,b)=>a+b.pct,0)/runObjs.length : 0;
+
+    const runDetails = document.createElement("details");
+    runDetails.open = (CURRENT_RUN !== "ALL"); // si filtrás por run, se abre
+
+    const runSummary = document.createElement("summary");
+    runSummary.innerHTML = `
+      <div class="sum-left">
+        <span class="caret"></span>
+        <div class="node-title" title="${escapeHtml(runName)}">${escapeHtml(runName)}</div>
+      </div>
+      <div class="meta">
+        <span class="pct ${pctClass(runPct, runHasError)}">${fmtPct(runPct)}</span>
+      </div>
+    `;
+    runDetails.appendChild(runSummary);
+
+    const runChildren = document.createElement("div");
+    runChildren.className = "children";
+
+    const blockNames = [...runBlocks.keys()].sort();
+    for (const blockName of blockNames){
+      const arr = runBlocks.get(blockName);
+      arr.sort((a,b)=>a.data_object.localeCompare(b.data_object));
+
+      const blockHasError = arr.some(x => x.has_error);
+      const blockPct = arr.length ? arr.reduce((s,x)=>s+x.pct,0)/arr.length : 0;
+
+      const blockDiv = document.createElement("div");
+      blockDiv.className = "child";
+      blockDiv.innerHTML = `
+        <div class="left">
+          <span class="chip">BLOCK</span>
+          <div class="node-title" title="${escapeHtml(blockName)}">${escapeHtml(blockName)}</div>
+        </div>
+        <div class="meta">
+          <span class="pct ${pctClass(blockPct, blockHasError)}">${fmtPct(blockPct)}</span>
+        </div>
+      `;
+
+      const objWrap = document.createElement("div");
+      objWrap.style.padding = "0 0 0 10px";
+      objWrap.style.marginBottom = "10px";
+
+      for (const o of arr){
+        const objDiv = document.createElement("div");
+        objDiv.className = "child";
+        objDiv.style.background = "rgba(11,19,36,.25)";
+        objDiv.innerHTML = `
+          <div class="left">
+            <span class="chip">OBJ</span>
+            <div class="node-title" title="${escapeHtml(o.data_object)}">${escapeHtml(o.data_object)}</div>
+            <span class="badge ${o.has_error ? "err" : (o.pct>=100?"ok": o.pct>0?"warn":"idle")}">
+              ${o.items} items
+            </span>
+          </div>
+          <div class="meta">
+            <span class="pct ${pctClass(o.pct, o.has_error)}">${fmtPct(o.pct)}</span>
+          </div>
+        `;
+
+        // click: filtra rápido por texto
+        objDiv.addEventListener("click", () => {
+          const q = document.getElementById("q");
+          q.value = o.data_object;
+          render();
+        });
+
+        objWrap.appendChild(objDiv);
       }
+
+      runChildren.appendChild(blockDiv);
+      runChildren.appendChild(objWrap);
     }
 
-    el("glsRows").innerHTML = html;
-    el("glsMeta").textContent = "Módulos: " + modules.length + " | Filas consideradas: " + (filteredCount||0);
+    runDetails.appendChild(runChildren);
+    tree.appendChild(runDetails);
   }
-function statusLabel(p){
-  if(p < 0.5) return "CRÍTICO";
-  if(p <= 0.8) return "EN CURSO";
-  return "OK";
-}
-function passStatusFilter(p){
-  var ok = el("fOK").checked;
-  var run = el("fRUN").checked;
-  var crit = el("fCRIT").checked;
-
-  if(p > 0.8 && !ok) return false;
-  if(p >= 0.5 && p <= 0.8 && !run) return false;
-  if(p < 0.5 && !crit) return false;
-
-  return true;
-}
-function statusBadge(p){
-  var cls = pctColorClass(p);
-  return '<span class="' + cls + '">' + statusLabel(p) + '</span>';
 }
 
-// Agrupa por Type+Run+Module+Object (como tu tabla original)
-function computeObjectSummary(rows){
-  var map = {};
-  var keys = [];
+function buildTable(rows){
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
 
-  for(var i=0;i<rows.length;i++){
-    var r = rows[i];
-    var type = String(r[COL.type]||"").trim();
-    var run  = String(r[COL.runName]||"").trim();
-    var mod  = String(r[COL.module]||"").trim();
-    var obj  = String(r[COL.object]||"").trim();
+  const meta = document.getElementById("tableMeta");
+  meta.textContent = `${rows.length} filas`;
 
-    if(!type || !run || !mod || !obj) continue;
+  for (const r of rows){
+    const tr = document.createElement("tr");
+    const s = String(r.status).toUpperCase();
+    const cls = statusClass(s);
 
-    var key = type + "||" + run + "||" + mod + "||" + obj;
-    if(!map[key]){
-      map[key] = { type:type, run:run, module:mod, object:obj, total:0, done:0 };
-      keys.push(key);
-    }
-
-    map[key].total += 1;
-    if(isDoneRow(r)) map[key].done += 1;
+    tr.innerHTML = `
+      <td>
+        <div class="rowStatus">
+          <span class="statusDot ${cls}"></span>
+          <span class="mono">${escapeHtml(s)}</span>
+        </div>
+      </td>
+      <td class="mono">${escapeHtml(r.type || "")}</td>
+      <td>${escapeHtml(r.source_system || "")}</td>
+      <td>${escapeHtml(r.target_system || "")}</td>
+      <td>${escapeHtml(r.folder || "")}</td>
+      <td>${escapeHtml(r.run_name || "")}</td>
+      <td>${escapeHtml(r.block || "")}</td>
+      <td class="mono">${escapeHtml(r.module_id || "")}</td>
+      <td>${escapeHtml(r.data_object || "")}</td>
+      <td class="mono">${escapeHtml(r.table_name || "")}</td>
+      <td class="right mono">${formatInt(r.records_count)}</td>
+      <td>
+        <span class="progressbar"><i style="width:${Math.max(0,Math.min(100,r.progress||0))}%"></i></span>
+        <span class="mono">${fmtPct(r.progress||0)}</span>
+      </td>
+      <td class="right mono">${fmtHMS(r.runtime_real_sec)}</td>
+      <td class="right mono">${fmtHMS(r.runtime_process_sec)}</td>
+      <td class="right mono">${fmtHMS(r.runtime_prep_sec)}</td>
+      <td class="right mono small muted">${escapeHtml(String(r.updated_at).slice(0,19).replace("T"," "))}</td>
+    `;
+    tbody.appendChild(tr);
   }
-
-  keys.sort();
-  return keys.map(function(k){
-    var g = map[k];
-    g.pct = g.total ? (g.done/g.total) : 0;
-    return g;
-  });
 }
 
-function renderObjectTable(sum){
-  var q = String(el("qObjTable").value || "").toLowerCase().trim();
+function render(){
+  const rows = applyFilters();
+  buildTree(rows);
+  buildTable(rows);
 
-  var html = "";
-  var shown = 0;
-
-  for(var i=0;i<sum.length;i++){
-    var g = sum[i];
-
-    var hay = (g.type + " " + g.run + " " + g.module + " " + g.object).toLowerCase();
-    if(q && hay.indexOf(q) < 0) continue;
-    if(!passStatusFilter(g.pct)) continue; // <-- NUEVO
-    var cls = pctColorClass(g.pct);
-
-    html += "<tr>";
-    html += "<td>" + g.type + "</td>";
-    html += "<td>" + g.run + "</td>";
-    html += "<td>" + g.module + "</td>";
-    html += "<td><b>" + g.object + "</b></td>";
-    html += "<td>" + g.total + "</td>";
-    html += "<td>" + g.done + "</td>";
-    html += "<td><span class=\"" + cls + "\">" + pct(g.pct) + "</span></td>";
-    html += "<td>" + statusBadge(g.pct) + "</td>";
-    html += "</tr>";
-
-    shown++;
-  }
-
-  el("objRows").innerHTML = html || "<tr><td colspan='8' class='muted'>Sin resultados</td></tr>";
-  el("objMeta").textContent = "Objetos: " + sum.length + " | Mostrados: " + shown;
+  const footer = document.getElementById("footerHint");
+  const runTxt = (CURRENT_RUN === "ALL") ? "Todas las runs" : CURRENT_RUN;
+  footer.innerHTML = `Mostrando <b>${rows.length}</b> filas — Run: <code>${escapeHtml(runTxt)}</code> — Última actualización: <code>${escapeHtml(LAST_FETCH || "")}</code>`;
 }
-  // ===============================
-  // Render dashboard
-  // ===============================
-  function renderDashboard(){
-    var filtered = filterRows();
 
-    // KPIs ponderados por steps/filas
-    var k = computeKPIsWeighted(filtered);
+function formatInt(n){
+  n = Number(n||0);
+  return n.toLocaleString("es-AR");
+}
 
-    el("kpis").innerHTML =
-      '<div class="kpi"><div class="v">' + pct(k.totalPct) + '</div><div class="l">Avance total (ponderado por steps)</div></div>' +
-      '<div class="kpi"><div class="v">' + pct(k.expPct) + '</div><div class="l">Export (steps: ' + k.expDone + '/' + k.expTotal + ')</div></div>' +
-      '<div class="kpi"><div class="v">' + pct(k.impPct) + '</div><div class="l">Import (steps: ' + k.impDone + '/' + k.impTotal + ')</div></div>' +
-      '<div class="kpi"><div class="v">' + (filtered.length) + '</div><div class="l">Filas filtradas</div></div>';
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
 
-    // Curva por run
-    var res = buildEvolutionSeries(filtered);
-    renderCurve(res.series);
+let LAST_FETCH = "";
 
-    el("curveDbg").innerHTML =
-      "<b>Debug curva</b><br/>" +
-      "Filas filtradas: <b>" + res.dbg.totalRows + "</b><br/>" +
-      "Total EXP: <b>" + res.dbg.totalEXP + "</b> | Total IMP: <b>" + res.dbg.totalIMP + "</b><br/>" +
-      "Eventos por End date/time: <b>" + res.dbg.withEnd + "</b><br/>" +
-      "Eventos por Start + Runtime: <b>" + res.dbg.withStartRuntime + "</b><br/>" +
-      "Saltadas (sin tiempo suficiente): <b>" + res.dbg.skipped + "</b><br/>" +
-      "Total eventos graficados: <b>" + res.eventsCount + "</b>";
+async function refresh(){
+  const data = await fetchData();
+  ALL = data;
+  LAST_FETCH = new Date().toLocaleString("es-AR");
+  buildRunSelect();
+  render();
+}
 
-    // Curva por hora
-    var h = buildHourlySeries(filtered);
-    renderHourlyCurve(h);
-
-    // GLS por módulo
-    var gls = computeGLS(filtered);
-    renderGLS(gls, filtered.length);
-
-        // Status de todos los objetos
-    var objSum = computeObjectSummary(filtered);
-    renderObjectTable(objSum);
-    state.last = { filtered: filtered, gls: gls, kpi: k };
-  }
-
-  function enableUI(){
-    el("selectAll").disabled = false;
-    el("selectNone").disabled = false;
-    el("apply").disabled = false;
-    el("download").disabled = false;
-    el("saveProfile").disabled = false;
-    el("loadProfile").disabled = false;
-    el("exportLog").disabled = false;
-    el("clearLog").disabled = false;
-  }
-
-  // Delegación: cualquier cambio en filtros -> render + autosave perfil
-  function wireDelegated(){
-    document.addEventListener("change", function(ev){
-      var t = ev.target;
-      if(!t) return;
-
-      if(t.matches('input[type="checkbox"][data-group]')){
-        renderDashboard();
-        saveProfileLocal();
-      }
-    });
-    ["fOK","fRUN","fCRIT"].forEach(function(id){
-      el(id).addEventListener("change", function(){
-        if(state.last && state.last.filtered){
-          var objSum = computeObjectSummary(state.last.filtered);
-          renderObjectTable(objSum);
-        }
-      });
-    });
-    el("qRuns").addEventListener("input", function(){ applySearch("qRuns","runs"); });
-    el("qModules").addEventListener("input", function(){ applySearch("qModules","modules"); });
-    el("qObjects").addEventListener("input", function(){ applySearch("qObjects","objects"); });
-    el("qTables").addEventListener("input", function(){ applySearch("qTables","tableGroups"); });
-    el("qObjTable").addEventListener("input", function(){
-  if(state.last && state.last.filtered){
-    var objSum = computeObjectSummary(state.last.filtered);
-    renderObjectTable(objSum);
-  }
-});
-  }
-
-  // ===============================
-  // Download report: SOLO curvas + GLS
-  // ===============================
-  function downloadHTMLReport(){
-    var generatedAt = new Date().toLocaleString("es-AR",{hour12:false});
-
-    // OJO: exporta el mismo CSS para mantener look&feel
-    var css = document.querySelector("style").innerHTML;
-
-    var parts = [
-      "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"/>",
-      "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>",
-      "<title>Migration Status Report</title>",
-      "<style>", css, "</style>",
-      "</head><body>",
-      "<header style=\"position:sticky;top:0;z-index:30;background:#ffffff;border-bottom:1px solid #e5e7eb;padding:12px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;\">",
-      "<div style=\"display:flex;gap:10px;align-items:center;flex-wrap:wrap;\">",
-      "<h1 style=\"margin:0;font-size:16px;font-weight:950;\">Migration Status Report</h1>",
-      "</div>",
-      "<div style=\"color:#6b7280;font-size:12px;\">Generado: <b>", generatedAt, "</b></div>",
-      "</header>",
-      "<main style=\"padding:14px 16px;max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:14px;\">",
-
-      "<section class=\"card\">",
-        "<div style=\"font-weight:950;font-size:16px\">Curva de evolución (por Run name)</div>",
-        "<div class=\"muted\">", escapeHTML(el("curveMeta").textContent || ""), "</div>",
-        "<div style=\"height:10px\"></div>",
-        "<div class=\"svgwrap\">", el("curve").innerHTML, "</div>",
-      "</section>",
-
-      "<section class=\"card\">",
-        "<div style=\"font-weight:950;font-size:16px\">Curva por hora (cliente)</div>",
-        "<div class=\"muted\">", escapeHTML(el("hourlyMeta").textContent || ""), "</div>",
-        "<div style=\"height:10px\"></div>",
-        "<div class=\"svgwrap\">", el("curveHourly").innerHTML, "</div>",
-      "</section>",
-
-      "<section class=\"card\">",
-        "<div style=\"font-weight:950;font-size:16px\">Migration Status GLS (por Módulo)</div>",
-        "<div class=\"muted\">", escapeHTML(el("glsMeta").textContent || ""), "</div>",
-        "<div style=\"height:10px\"></div>",
-        "<div class=\"tableWrap\" style=\"max-height:none;\">",
-          "<table>",
-            "<thead>", document.querySelector("#glsRows").closest("table").querySelector("thead").innerHTML, "</thead>",
-            "<tbody>", el("glsRows").innerHTML, "</tbody>",
-          "</table>",
-        "</div>",
-      "</section>",
-
-      "</main>",
-      "</body></html>"
-    ];
-
-    var html = parts.join("");
-    var blob = new Blob([html], {type:"text/html;charset=utf-8"});
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "migration_status_report.html";
-    a.click();
-    URL.revokeObjectURL(a.href);
-
-    pushLog("download_report");
-  }
-
-  function escapeHTML(s){
-    return String(s||"")
-      .replace(/&/g,"&amp;")
-      .replace(/</g,"&lt;")
-      .replace(/>/g,"&gt;")
-      .replace(/"/g,"&quot;")
-      .replace(/'/g,"&#039;");
-  }
-
-  // ===============================
-  // Buttons
-  // ===============================
-  el("apply").addEventListener("click", function(){ renderDashboard(); saveProfileLocal(); pushLog("apply"); });
-  el("download").addEventListener("click", function(){ downloadHTMLReport(); });
-
-  el("selectAll").addEventListener("click", function(){
-    setAll(true);
-    renderDashboard();
-    saveProfileLocal();
-    pushLog("select_all");
+function wireUI(){
+  const sel = document.getElementById("runSelect");
+  sel.addEventListener("change", () => {
+    CURRENT_RUN = sel.value;
+    render();
   });
 
-  el("selectNone").addEventListener("click", function(){
-    setAll(false);
-    renderDashboard();
-    saveProfileLocal();
-    pushLog("select_none");
-  });
+  const q = document.getElementById("q");
+  q.addEventListener("input", () => render());
 
-  el("saveProfile").addEventListener("click", function(){
-    // Exporta el perfil actual (para compartir con otros PMs)
-    var payload = {
-      version: 1,
-      exported_at: nowISO(),
-      groups: {
-        type: Object.keys(readChecked("type")),
-        run: Object.keys(readChecked("run")),
-        module: Object.keys(readChecked("module")),
-        object: Object.keys(readChecked("object")),
-        tgroup: Object.keys(readChecked("tgroup"))
-      }
-    };
-    exportJSON("migration_profile.json", payload);
-    pushLog("export_profile");
-  });
+  document.getElementById("refreshBtn").addEventListener("click", refresh);
+}
 
-  el("loadProfile").addEventListener("click", function(){
-    el("profileFile").click();
-  });
+// Demo data (si no existe tasks.json)
+function getDemo(){
+  return [
+    { type:"EXP", source_system:"SOURCE", target_system:"", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"Tables Index creations", module_id:"FICA_DEV", data_object:"INDEX_CREATE_FICA", table_name:"/APP/T1", progress:"100.00%", number_of_records:1, real_runtime:"00:21:25", process_runtime:"00:21:25", prep_runtime:"00:00:00", status:"CO" },
+    { type:"EXP", source_system:"SOURCE", target_system:"", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"Tables Index creations", module_id:"QM", data_object:"INDEX_CREATE_QM", table_name:"/APP/Q1", progress:"100.00%", number_of_records:1, real_runtime:"00:17:26", process_runtime:"00:17:26", prep_runtime:"00:00:00", status:"CO" },
 
-  el("profileFile").addEventListener("change", function(e){
-    var f = e.target.files && e.target.files[0];
-    if(!f) return;
-    importJSON(f, function(obj){
-      var ok = loadProfileFromObj(obj);
-      if(ok){
-        renderDashboard();
-        saveProfileLocal(); // guarda también local
-        pushLog("import_profile");
-      }
-    });
-  });
+    { type:"IMP", source_system:"SOURCE", target_system:"TARGET", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"Prior Imports FI", module_id:"FI", data_object:"FIGL_MASTER", table_name:"SKA1", progress:"0.00%", number_of_records:0, real_runtime:"00:00:00", process_runtime:"00:00:00", prep_runtime:"00:00:00", status:"PE" },
+    { type:"IMP", source_system:"SOURCE", target_system:"TARGET", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"Prior Imports FI", module_id:"FI", data_object:"FIGL_MASTER", table_name:"SKAS", progress:"0.00%", number_of_records:0, real_runtime:"00:00:00", process_runtime:"00:00:00", prep_runtime:"00:00:00", status:"PE" },
 
-  el("exportLog").addEventListener("click", function(){
-    var arr = [];
-    try{ arr = JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }catch(e){}
-    exportJSON("migration_log.json", arr);
-    pushLog("export_log");
-  });
+    { type:"EXP", source_system:"SOURCE", target_system:"TARGET", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"ISU NNP 2", module_id:"ISU_TM2", data_object:"ISU_EQUIPMENT_TM2", table_name:"EQUI", progress:"100.00%", number_of_records:53123, real_runtime:"01:26:20", process_runtime:"01:26:20", prep_runtime:"00:00:00", status:"CO" },
+    { type:"EXP", source_system:"SOURCE", target_system:"TARGET", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"ISU NNP 2", module_id:"ISU_TM2", data_object:"ISU_EQUIPMENT_TM2", table_name:"EQUZ", progress:"55.86%", number_of_records:9000, real_runtime:"00:44:10", process_runtime:"00:44:10", prep_runtime:"00:00:00", status:"PN" },
+    { type:"EXP", source_system:"SOURCE", target_system:"TARGET", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"ISU NNP 3", module_id:"ISU_TM2", data_object:"ISU_INSTALLATION_TM2", table_name:"EADZ", progress:"0.07%", number_of_records:2379122, real_runtime:"00:07:37", process_runtime:"00:07:37", prep_runtime:"00:00:00", status:"PN" }
+  ];
+}
 
-  el("clearLog").addEventListener("click", function(){
-    localStorage.removeItem(LOG_KEY);
-    pushLog("clear_log");
-    alert("Log limpiado.");
-  });
-
-  // ===============================
-  // File load
-  // ===============================
-  el("file").addEventListener("change", function(e){
-    clearError();
-
-    if(typeof XLSX === "undefined"){
-      showError("No se encontró XLSX. Subí xlsx.full.min.js en la misma carpeta que index.html.");
-      return;
-    }
-
-    var file = e.target.files && e.target.files[0];
-    if(!file) return;
-
-    el("status").textContent = "Leyendo: " + file.name + "…";
-
-    file.arrayBuffer().then(function(buf){
-      var wb = XLSX.read(buf, { type:"array" });
-      var wsName = wb.SheetNames[0];
-      var ws = wb.Sheets[wsName];
-      var json = XLSX.utils.sheet_to_json(ws, { defval:"" });
-
-      state.raw = json;
-
-      // armar listas
-      var types   = uniq(json.map(function(r){ return r[COL.type]; }));
-      var runs    = uniq(json.map(function(r){ return r[COL.runName]; }));
-      var modules = uniq(json.map(function(r){ return r[COL.module]; }));
-      var objects = uniq(json.map(function(r){ return r[COL.object]; }));
-      var tgroups = uniq(json.map(function(r){ return tableGroupName(r[COL.table]); }));
-
-      mkChecklist("types", types, "type");
-      mkChecklist("runs", runs, "run");
-      mkChecklist("modules", modules, "module");
-      mkChecklist("objects", objects, "object");
-      mkChecklist("tableGroups", tgroups, "tgroup");
-
-      enableUI();
-
-      el("qRuns").value = "";
-      el("qModules").value = "";
-      el("qObjects").value = "";
-      el("qTables").value = "";
-
-      applySearch("qRuns","runs");
-      applySearch("qModules","modules");
-      applySearch("qObjects","objects");
-      applySearch("qTables","tableGroups");
-
-      // aplicar perfil guardado local si existe
-      loadProfileLocal();
-
-      el("status").textContent = "Cargado: " + file.name + " | Filas: " + json.length;
-
-      pushLog("file_loaded", { name:file.name, rows: json.length, sheet: wsName });
-
-      renderDashboard();
-      saveProfileLocal();
-    }).catch(function(err){
-      showError("Error leyendo XLSX:\n" + (err && err.message ? err.message : String(err)));
-      el("status").textContent = "Error";
-      pushLog("file_error", { message: String(err && err.message ? err.message : err) });
-    });
-  });
-
-  // start
-  wireDelegated();
+(async function init(){
+  wireUI();
+  await refresh();
+  setInterval(refresh, REFRESH_EVERY_MS);
 })();
 </script>
 </body>

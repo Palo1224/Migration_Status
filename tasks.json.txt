@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "type": "EXP",
+      "source_system": "SOURCE",
+      "target_system": "TARGET",
+      "folder": "TM4_IDL",
+      "run_name": "TM4_Initial_Load",
+      "block": "ISU NNP 2",
+      "module_id": "ISU_TM2",
+      "data_object": "ISU_EQUIPMENT_TM2",
+      "table_name": "EQUI",
+      "status": "CO",
+      "progress": "100.00%",
+      "number_of_records": 53123,
+      "real_runtime": "01:26:20",
+      "process_runtime": "01:26:20",
+      "prep_runtime": "00:00:00",
+      "updated_at": "2026-02-25T12:10:26"
+    }
+  ]
+}
