@@ -1,1170 +1,249 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Migration Status Portal</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Baseline Monitor</title>
 
-  <!-- XLSX reader -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <style>
-    :root{
-      --bg:#f6f7fb;
-      --card:#ffffff;
-      --border:#e6e8ef;
-      --text:#101828;
-      --muted:#667085;
-      --shadow: 0 12px 30px rgba(16,24,40,.08);
-      --radius:16px;
-
-      --ok:#12b76a;
-      --warn:#f79009;
-      --bad:#f04438;
-
-      --chip:#f2f4f7;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-    }
-    *{box-sizing:border-box}
-    body{ margin:0; font-family:var(--sans); background:var(--bg); color:var(--text); }
-
-    header{
-      padding:18px 20px 10px;
-      display:flex; align-items:center; justify-content:space-between; gap:14px;
-    }
-    header h1{ font-size:16px; margin:0; display:flex; align-items:center; gap:10px; }
-    header .badge{
-      font-size:12px; padding:4px 10px; border-radius:999px;
-      background:var(--chip); border:1px solid var(--border); color:var(--muted);
-    }
-    header .right{ font-size:12px; color:var(--muted); }
-
-    .layout{
-      display:grid;
-      grid-template-columns: 360px 1fr;
-      gap:16px;
-      padding: 0 20px 22px;
-      max-width: 1500px;
-      margin: 0 auto;
-    }
-    @media (max-width: 1100px){ .layout{ grid-template-columns: 1fr; } }
-
-    .card{
-      background:var(--card);
-      border:1px solid var(--border);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      overflow:hidden;
-    }
-
-    /* Sidebar */
-    .sidebar{ padding:12px; }
-    .section{
-      border:1px solid var(--border);
-      border-radius:14px;
-      padding:12px;
-      margin-bottom:12px;
-      background:#fff;
-    }
-    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    .btn{
-      cursor:pointer; border:1px solid var(--border); background:#fff;
-      padding:10px 12px; border-radius:12px; font-size:13px;
-      transition: transform .04s ease, background .15s ease;
-    }
-    .btn:active{ transform: translateY(1px); }
-    .btn.primary{ background:#2563eb; color:#fff; border-color: rgba(37,99,235,.4); }
-    .btn.soft{ background:#eef2ff; border-color: rgba(37,99,235,.15); color:#1d4ed8; }
-    .hint{ font-size:12px; color:var(--muted); line-height:1.35; }
-
-    .field{ width:100%; display:flex; flex-direction:column; gap:6px; margin-top:10px; }
-    .label{ font-size:12px; color:var(--muted); }
-    input[type="text"]{
-      width:100%; padding:10px 12px; border-radius:12px;
-      border:1px solid var(--border); outline:none; font-size:13px;
-    }
-
-    .checklist{
-      display:flex; flex-direction:column; gap:6px;
-      max-height: 160px; overflow:auto;
-      padding:6px 4px;
-    }
-    .checkitem{
-      display:flex; gap:8px; align-items:center;
-      font-size:13px; color:#111827;
-      padding:6px 8px; border-radius:10px;
-    }
-    .checkitem:hover{ background:#f8fafc; }
-    .checkitem .count{ margin-left:auto; font-size:12px; color:var(--muted); font-family:var(--mono); }
-
-    /* Main */
-    .mainHead{
-      padding:14px 14px 10px;
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      border-bottom:1px solid var(--border);
-    }
-    .mainHead h2{ margin:0; font-size:13px; }
-    .mainHead small{ color:var(--muted); font-weight:500; }
-
-    .pillRow{
-      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-      padding: 10px 14px;
-      border-bottom:1px solid var(--border);
-      background:#fcfcfd;
-    }
-    .pill{
-      display:flex; gap:8px; align-items:center;
-      padding:7px 10px; border-radius:999px; border:1px solid var(--border);
-      background:var(--chip); font-size:12px; color:var(--muted);
-    }
-    .dot{ width:8px; height:8px; border-radius:999px; background:#98a2b3; }
-    .dot.ok{ background:var(--ok); }
-    .dot.warn{ background:var(--warn); }
-    .dot.bad{ background:var(--bad); }
-
-    /* Tree */
-    .treeWrap{ padding:12px; }
-    details{
-      border:1px solid var(--border);
-      border-radius:14px;
-      background:#fff;
-      margin:10px 0;
-      overflow:hidden;
-    }
-    summary{
-      list-style:none;
-      cursor:pointer;
-      padding:10px 12px;
-      display:flex; align-items:center; justify-content:space-between;
-      gap:10px;
-      background:#fff;
-    }
-    summary::-webkit-details-marker{ display:none; }
-    .sumLeft{ display:flex; align-items:center; gap:10px; min-width:0; }
-    .caret{
-      width: 9px; height: 9px;
-      border-right:2px solid #98a2b3;
-      border-bottom:2px solid #98a2b3;
-      transform: rotate(-45deg);
-    }
-    details[open] .caret{ transform: rotate(45deg); }
-    .nodeTitle{
-      font-size:13px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width: 520px;
-    }
-    .meta{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
-    .pct{
-      font-family:var(--mono);
-      font-size:12px;
-      padding:4px 8px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background:var(--chip);
-      min-width:78px;
-      text-align:right;
-      color:#344054;
-    }
-    .pct.ok{ border-color: rgba(18,183,106,.25); background: rgba(18,183,106,.06); }
-    .pct.warn{ border-color: rgba(247,144,9,.25); background: rgba(247,144,9,.06); }
-    .pct.bad{ border-color: rgba(240,68,56,.25); background: rgba(240,68,56,.06); }
-
-    .children{
-      padding: 10px 12px 12px 18px;
-      border-top:1px solid var(--border);
-      background:#fcfcfd;
-    }
-    .childRow{
-      display:flex; align-items:center; justify-content:space-between;
-      gap:10px;
-      padding:8px 10px;
-      border:1px solid #eef2f7;
-      border-radius:12px;
-      background:#fff;
-      margin:8px 0;
-    }
-    .chip{
-      font-size:11px; padding:5px 8px; border-radius:999px;
-      border:1px solid var(--border); background:var(--chip); color:var(--muted);
-      flex-shrink:0;
-    }
-    .mono{ font-family:var(--mono); }
-
-    /* Table */
-    .tableWrap{
-      overflow:auto;
-      border-top:1px solid var(--border);
-    }
-    table{
-      width:100%;
-      border-collapse: collapse;
-      min-width: 1200px;
-      font-size:12.5px;
-    }
-    thead th{
-      position: sticky; top:0; z-index:2;
-      background:#fff;
-      text-align:left;
-      padding:10px 10px;
-      border-bottom:1px solid var(--border);
-      color:#475467;
-      font-weight:600;
-      white-space:nowrap;
-    }
-    tbody td{
-      padding:9px 10px;
-      border-bottom:1px solid #f0f2f6;
-      white-space:nowrap;
-      color:#101828;
-      vertical-align:middle;
-    }
-    tbody tr:hover{ background:#f8fafc; }
-    .right{ text-align:right; }
-/* Group header row in table */
-tr.groupRow td{
-  position: sticky;
-  top: 38px; /* queda debajo del header sticky */
-  z-index: 1;
-  background:#fcfcfd;
-  color:#475467;
-  font-weight:700;
-  border-top:1px solid var(--border);
-  border-bottom:1px solid var(--border);
+<style>
+:root{
+  --bg:#f5f7fb;
+  --card:#fff;
+  --border:#e6e8ef;
+  --ok:#12b76a;
+  --warn:#f79009;
+  --bad:#f04438;
+  --text:#111827;
+  --muted:#667085;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas;
 }
-.groupPill{
-  display:inline-flex; align-items:center; gap:8px;
-  padding:6px 10px; border-radius:999px;
-  border:1px solid var(--border);
-  background:var(--chip);
-  font-size:12px;
-}
-.groupPill.ok{ border-color: rgba(18,183,106,.25); background: rgba(18,183,106,.06); }
-.groupPill.warn{ border-color: rgba(247,144,9,.25); background: rgba(247,144,9,.06); }
-.groupPill.bad{ border-color: rgba(240,68,56,.25); background: rgba(240,68,56,.06); }
-    .statusTag{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
-      border:1px solid var(--border);
-      background:#fff; font-size:12px; color:#344054;
-    }
-    .statusTag .sDot{ width:8px; height:8px; border-radius:999px; background:#98a2b3; }
-
-    .statusTag.ok{ border-color: rgba(18,183,106,.25); background: rgba(18,183,106,.06); }
-    .statusTag.ok .sDot{ background: var(--ok); }
-    .statusTag.warn{ border-color: rgba(247,144,9,.25); background: rgba(247,144,9,.06); }
-    .statusTag.warn .sDot{ background: var(--warn); }
-    .statusTag.bad{ border-color: rgba(240,68,56,.25); background: rgba(240,68,56,.06); }
-    .statusTag.bad .sDot{ background: var(--bad); }
-
-    .progressBar{
-      width: 120px; height: 8px; border-radius:999px;
-      border:1px solid var(--border);
-      background:#f2f4f7;
-      overflow:hidden; display:inline-block;
-      vertical-align:middle; margin-right:8px;
-    }
-    .progressBar > i{
-      display:block; height:100%;
-      width:0%;
-      background: linear-gradient(90deg, #60a5fa, #12b76a);
-    }
-  </style>
+body{margin:0;background:var(--bg);font-family:system-ui;color:var(--text)}
+header{padding:18px 20px;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:16px}
+.container{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:0 20px 20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px}
+button{cursor:pointer;border:1px solid var(--border);padding:8px 12px;border-radius:10px;background:#fff}
+button.primary{background:#2563eb;color:#fff;border-color:#2563eb}
+input[type=file]{font-size:12px}
+.tree details{margin-bottom:10px;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+summary{cursor:pointer;padding:8px 12px;display:flex;justify-content:space-between;align-items:center}
+.children{padding:8px 14px 12px;background:#fafbff}
+.task{display:flex;justify-content:space-between;padding:6px 0}
+.pct{font-family:var(--mono);padding:3px 8px;border-radius:999px;border:1px solid var(--border)}
+.pct.ok{background:rgba(18,183,106,.08);border-color:rgba(18,183,106,.2)}
+.pct.warn{background:rgba(247,144,9,.08);border-color:rgba(247,144,9,.2)}
+.pct.bad{background:rgba(240,68,56,.08);border-color:rgba(240,68,56,.2)}
+.status{font-size:11px;margin-left:8px}
+small{color:var(--muted)}
+.meta{font-size:12px;color:var(--muted)}
+</style>
 </head>
 
 <body>
+
 <header>
-  <h1>
-    Migration Status Portal
-    <span class="badge" id="fileBadge">Sin archivo</span>
-  </h1>
-  <div class="right">
-    Orden: Preparation → Preselection → Prior Export → Export → Last Export → Manual deletion → Import Forerunner → Prior Import(s) → Import → Last Import → Last activities
-  </div>
+  <h1>Baseline Monitor</h1>
+  <div class="meta" id="meta">Sin datos</div>
 </header>
 
-<div class="layout">
+<div class="container">
+
   <!-- SIDEBAR -->
-  <aside class="card sidebar">
-    <div class="section">
-      <div class="row" style="justify-content:space-between;">
-        <input type="file" id="fileInput" accept=".xlsx,.xls,.json" />
-        <button class="btn primary" id="applyBtn">Aplicar</button>
-      </div>
-
-      <div class="row" style="margin-top:10px;">
-        <button class="btn soft" id="selectAllBtn">Seleccionar todo</button>
-        <button class="btn soft" id="selectNoneBtn">Seleccionar nada</button>
-      </div>
-
-      <div class="row" style="margin-top:10px;">
-        <button class="btn" id="exportJsonBtn">Export JSON</button>
-        <button class="btn" id="importJsonBtn">Import JSON</button>
-        <button class="btn" id="clearBtn">Limpiar</button>
-      </div>
-
-      <div class="hint" style="margin-top:10px;">
-        Cargá tu <b>XLSX</b> exportado o un <b>JSON</b>. El % de Object se calcula agregando sus tablas
-        (ponderado por <span class="mono">#records</span>, con fallback a 1 si viene 0).
-      </div>
+  <div class="card">
+    <div>
+      <strong>1. Baseline (JSON)</strong><br>
+      <input type="file" id="baselineInput" accept=".json"/>
     </div>
-
-    <div class="section">
-      <div class="field">
-        <div class="label">Filtros (checkbox)</div>
-        <div class="hint">Afectan el árbol y la tabla.</div>
-      </div>
-
-      <div class="field">
-        <div class="label">Folder</div>
-        <input type="text" id="folderSearch" placeholder="Buscar folder..." />
-        <div class="checklist" id="folderList"></div>
-      </div>
-
-      <div class="field">
-        <div class="label">Run</div>
-        <input type="text" id="runSearch" placeholder="Buscar run..." />
-        <div class="checklist" id="runList"></div>
-      </div>
-
-      <div class="field">
-        <div class="label">Type (EXP/IMP)</div>
-        <div class="checklist" id="typeList"></div>
-      </div>
-
-      <div class="field">
-        <div class="label">Buscar (global)</div>
-        <input type="text" id="globalSearch" placeholder="Buscar: object, module, table, block..." />
-      </div>
-
-      <div class="hint" style="margin-top:10px;">
-        Status: UP Unprocessed · ER Erroneous · UN Unknown · CO Complete · PR Running · IN Incomplete · PN Pending ·
-        PP Preparation · RL Released · WA Waiting · SC Scout complete · PE Preparation erroneous
-      </div>
+    <br>
+    <div>
+      <strong>2. Run Log (XLSX/JSON)</strong><br>
+      <input type="file" id="logInput" accept=".xlsx,.xls,.json"/>
     </div>
-  </aside>
+    <br>
+    <button class="primary" id="applyBtn">Generar</button>
+    <button id="clearBtn">Limpiar</button>
+  </div>
 
   <!-- MAIN -->
-  <main class="card">
-    <div class="mainHead">
-      <h2>Árbol de status</h2>
-      <small id="metaText">—</small>
-    </div>
+  <div class="card">
+    <div class="tree" id="tree"></div>
+  </div>
 
-    <div class="pillRow">
-      <span class="pill" id="pillCounts">—</span>
-      <span class="pill"><span class="dot ok"></span> OK (&gt;80%)</span>
-      <span class="pill"><span class="dot warn"></span> EN CURSO (50–80%)</span>
-      <span class="pill"><span class="dot bad"></span> CRÍTICO (&lt;50%)</span>
-    </div>
-
-    <div class="treeWrap" id="tree"></div>
-
-    <div class="mainHead" style="border-top:1px solid var(--border); border-bottom:0;">
-      <h2>Detalle de tablas</h2>
-      <small class="mono" id="tableMeta">—</small>
-    </div>
-    <div class="tableWrap">
-      <table>
-        <thead>
-          <tr>
-            <th>FOLDER</th>
-            <th>STAGE</th>
-            <th>RUN</th>
-            <th>TYPE</th>
-            <th>MODULE</th>
-            <th>OBJECT</th>
-            <th>TABLE</th>
-            <th class="right"># records</th>
-            <th class="right">%</th>
-            <th>STATUS</th>
-          </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
-    </div>
-  </main>
 </div>
 
-<!-- hidden import input -->
-<input type="file" id="importInput" accept=".json" style="display:none" />
-
 <script>
-  const LS_KEY = "msp_portal_log_v3";
+let BASELINE = [];
+let RUNLOG = [];
+let MERGED = [];
 
-  // ===== STATUS mapping =====
-  const STATUS_INFO = {
-    UP: { label: "Unprocessed", cls: "warn" },
-    ER: { label: "Erroneous", cls: "bad" },
-    UN: { label: "Unknown", cls: "warn" },
-    CO: { label: "Complete", cls: "ok" },
-    PR: { label: "Running", cls: "warn" },
-    IN: { label: "Incomplete", cls: "warn" },
-    PN: { label: "Pending", cls: "warn" },
-    PP: { label: "Preparation", cls: "warn" },
-    RL: { label: "Released", cls: "warn" },
-    WA: { label: "Waiting", cls: "warn" },
-    SC: { label: "Scout complete", cls: "ok" },
-    PE: { label: "Preparation erroneous", cls: "bad" },
-  };
-  function statusLabel(code){
-    const c = String(code||"").toUpperCase().trim();
-    return STATUS_INFO[c]?.label || (c || "—");
-  }
-  function statusClass(code){
-    const c = String(code||"").toUpperCase().trim();
-    return STATUS_INFO[c]?.cls || "warn";
-  }
+function $(id){ return document.getElementById(id); }
 
-  // ===== Stage ordering (AMPLIADO para tus runs ⭐) =====
-  // NOTA: stageRank() usa uppercase, así que este array debe estar en uppercase.
-  const STAGE_ORDER = [
-    "PREPARATION",
-    "PRESELECTION",
-    "PRIOR EXPORT",
-    "EXPORT",
-    "LAST EXPORT",
-    "MANUAL DELETION BEFORE IMPORTS",
-    "IMPORT FORERUNNER",
-    "PRIOR IMPORT",
-    "PRIOR IMPORTS",
-    "IMPORT",
-    "LAST IMPORT",
-    "LAST ACTIVITIES",
-  ];
-  // Runs esperadas por folder (si faltan, las mostramos igual con 0%)
-const EXPECTED_RUN_SUFFIXES = [
-  "Preparation",
-  "Preselection",
-  "Export",
-  "Import Forerunner",
-  "Prior Imports",
-  "Import",
-];
-
-function extractRunBase(runName){
-  const r = String(runName || "").trim();
-  if (!r) return "";
-  const suffixes = EXPECTED_RUN_SUFFIXES.slice().sort((a,b)=> b.length - a.length);
-
-  for (const s of suffixes){
-    const esc = s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const re = new RegExp(`\\s+${esc}(\\s*\\(.*\\))?$`, "i"); // soporta "(2)"
-    if (re.test(r)) return r.replace(re, "").trim();
-  }
-  return r;
+function classify(p){
+  if(p>80) return "ok";
+  if(p>=50) return "warn";
+  return "bad";
 }
 
-function mostCommon(arr){
-  const m = new Map();
-  for (const x of arr){
-    const k = String(x||"").trim();
-    if (!k) continue;
-    m.set(k, (m.get(k)||0) + 1);
-  }
-  let best = "", bestN = 0;
-  for (const [k,n] of m.entries()){
-    if (n > bestN){ best = k; bestN = n; }
-  }
-  return best;
+function pct1(n){ return Math.floor((n||0)*10)/10 }
+
+function statusLabel(p){
+  if(p>80) return "OK";
+  if(p>=50) return "EN CURSO";
+  return "CRÍTICO";
 }
 
-  function stageRank(stage){
-    const s = String(stage||"").toUpperCase().trim();
-    const idx = STAGE_ORDER.indexOf(s);
-    return idx === -1 ? 999 : idx;
-  }
+function parseBaseline(obj){
+  const base = obj.baseline || obj;
+  const flat = [];
+  const folder = base.folder || "—";
 
-  // Detecta el stage a partir de folder/run/block (lo que venga en el XLSX)
-  function detectStage(t){
-    const hay = `${t.folder} ${t.run} ${t.block}`.toUpperCase();
-
-    // 1) Preparation / Preselection
-    if (hay.includes("PREPARATION")) return "Preparation";
-    if (hay.includes("PRESELECTION")) return "Preselection";
-
-    // 2) Export (orden: prior/last antes que export genérico)
-    if (hay.includes("PRIOR") && hay.includes("EXPORT")) return "Prior Export";
-    if (hay.includes("LAST") && hay.includes("EXPORT")) return "Last Export";
-    if (hay.includes("EXPORT")) return "Export";
-
-    // 3) Import steps especiales que vos tenés ⭐
-    if (hay.includes("MANUAL") && hay.includes("DELETION") && hay.includes("IMPORT")) return "Manual deletion before Imports";
-    if (hay.includes("FORERUNNER")) return "Import Forerunner";
-
-    // 4) Import (prior/last antes que import genérico)
-    // cubre "Prior Import" y "Prior Imports (2)"
-    if (hay.includes("PRIOR") && hay.includes("IMPORT")) return hay.includes("IMPORTS") ? "Prior Imports" : "Prior Import";
-    if (hay.includes("LAST") && hay.includes("IMPORT")) return "Last Import";
-    if (hay.includes("IMPORT")) return "Import";
-
-    // 5) Otros
-    if (hay.includes("LAST") && hay.includes("ACTIV")) return "Last activities";
-
-    return "";
-  }
-
-  let TASKS = []; // filas “tabla”
-  let FILTERS = {
-    folders: new Set(),
-    runs: new Set(),
-    types: new Set(),
-    q: ""
-  };
-
-  function $(id){ return document.getElementById(id); }
-  function setFileBadge(txt){ $("fileBadge").textContent = txt || "Sin archivo"; }
-
-  function escapeHtml(s){
-    return String(s ?? "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-
-  function toPctNumber(v){
-    if (v == null) return 0;
-    const s = String(v).trim();
-    if (!s) return 0;
-    return Number(s.replace("%","")) || 0;
-  }
-  function toInt(v){
-    const n = Number(String(v ?? "").replaceAll(".","").replaceAll(",",""));
-    return Number.isFinite(n) ? n : 0;
-  }
-  function pct1NoUp(n){
-    // 1 decimal SIN redondear hacia arriba
-    return Math.floor((Number(n)||0) * 10) / 10;
-  }
-  
-  function classifyPct(p){
-    if (p > 80) return "ok";
-    if (p >= 50) return "warn";
-    return "bad";
-  }
-  function groupKeyFromPct(p){
-  const cls = classifyPct(p);
-  return cls === "bad" ? "CRÍTICO" : (cls === "warn" ? "EN CURSO" : "OK");
-}
-function groupRank(name){
-  // orden de grupos arriba a abajo
-  if (name === "CRÍTICO") return 0;
-  if (name === "EN CURSO") return 1;
-  return 2; // OK
-}
-  function statusLabelFromPct(p){
-    const c = classifyPct(p);
-    return c === "ok" ? "OK" : (c === "warn" ? "EN CURSO" : "CRÍTICO");
-  }
-
-  function countBy(list, keyFn){
-    const m = new Map();
-    for (const x of list){
-      const k = keyFn(x) || "—";
-      m.set(k, (m.get(k)||0) + 1);
-    }
-    return m;
-  }
-
-  function buildChecklist(containerId, valuesMap, selectedSet, searchText=""){
-    const el = $(containerId);
-    el.innerHTML = "";
-    const st = (searchText||"").toLowerCase().trim();
-
-    const entries = [...valuesMap.entries()]
-      .filter(([k]) => !st || String(k).toLowerCase().includes(st))
-      .sort((a,b)=> String(a[0]).localeCompare(String(b[0])));
-
-    for (const [val, cnt] of entries){
-      const row = document.createElement("label");
-      row.className = "checkitem";
-      row.innerHTML = `
-        <input type="checkbox" ${selectedSet.has(val) ? "checked":""} data-value="${escapeHtml(val)}" />
-        <span title="${escapeHtml(val)}">${escapeHtml(val)}</span>
-        <span class="count">${cnt}</span>
-      `;
-      row.querySelector("input").addEventListener("change", (e)=>{
-        const v = e.target.getAttribute("data-value");
-        if (e.target.checked) selectedSet.add(v);
-        else selectedSet.delete(v);
-      });
-      el.appendChild(row);
-    }
-  }
-
-  function ensureDefaultSelections(){
-    const folders = countBy(TASKS, t=>t.folder);
-    const runs = countBy(TASKS, t=>t.run);
-    const types = countBy(TASKS, t=>t.type);
-
-    if (FILTERS.folders.size === 0) for (const k of folders.keys()) FILTERS.folders.add(k);
-    if (FILTERS.runs.size === 0) for (const k of runs.keys()) FILTERS.runs.add(k);
-    if (FILTERS.types.size === 0) for (const k of types.keys()) FILTERS.types.add(k);
-  }
-
-  function filteredTasks(){
-    const q = (FILTERS.q||"").toLowerCase().trim();
-    return TASKS.filter(t=>{
-      if (FILTERS.folders.size && !FILTERS.folders.has(t.folder || "—")) return false;
-      if (FILTERS.runs.size && !FILTERS.runs.has(t.run || "—")) return false;
-      if (FILTERS.types.size && !FILTERS.types.has(t.type || "—")) return false;
-
-      if (q){
-        const hay = `${t.folder} ${t.stage} ${t.run} ${t.type} ${t.module} ${t.object} ${t.table} ${t.block}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-  }
-
-  // ===== Aggregations =====
-  // Object % = sum(progress*weight)/sum(weight) where weight=max(#records,1)
-  function aggregateObjectPct(tasks){
-    const m = new Map();
-    for (const t of tasks){
-      const key = `${t.folder}||${t.run}||${t.object}`;
-      const weight = Math.max(t.records || 0, 1);
-      const pct = Math.max(0, Math.min(100, t.progress || 0));
-
-      if (!m.has(key)){
-        m.set(key, {
-          folder: t.folder || "—",
-          stage: t.stage || "",
-          run: t.run || "—",
-          object: t.object || "—",
-          module: t.module || "—",
-          sumW:0, sumWP:0,
-          tables: []
+  for(const blk of base.blocks||[]){
+    for(const sb of blk.subblocks||[]){
+      for(const t of sb.tasks||[]){
+        flat.push({
+          folder,
+          block: blk.name,
+          subblock: sb.name,
+          task: t.task,
+          task_key: t.task_key,
+          type: t.type||"",
+          from: t.from||"",
+          to: t.to||"",
+          order: t.order||0
         });
       }
-      const g = m.get(key);
-      if (!g.stage && t.stage) g.stage = t.stage;
-
-      g.sumW += weight;
-      g.sumWP += pct * weight;
-      g.tables.push(t);
-    }
-
-    return [...m.values()].map(g=>{
-      const raw = g.sumW ? (g.sumWP / g.sumW) : 0;
-      const pct = pct1NoUp(raw);
-      return { ...g, pct, cls: classifyPct(pct), statusLabel: statusLabelFromPct(pct) };
-    });
-  }
-
-  function aggregateRunPct(objects){
-    const m = new Map();
-    for (const o of objects){
-      const key = `${o.folder}||${o.run}`;
-      if (!m.has(key)){
-        m.set(key, { folder:o.folder, run:o.run, stage:o.stage||"", sum:0, n:0, objects:[] });
-      }
-      const g = m.get(key);
-      if (!g.stage && o.stage) g.stage = o.stage;
-      g.sum += o.pct;
-      g.n += 1;
-      g.objects.push(o);
-    }
-    return [...m.values()].map(g=>{
-      const pct = g.n ? pct1NoUp(g.sum/g.n) : 0;
-      return { ...g, pct, cls: classifyPct(pct) };
-    });
-  }
-
-  function aggregateFolderPct(runs){
-    const m = new Map();
-    for (const r of runs){
-      const key = r.folder;
-      if (!m.has(key)){
-        m.set(key, { folder:r.folder, sum:0, n:0, runs:[] });
-      }
-      const g = m.get(key);
-      g.sum += r.pct;
-      g.n += 1;
-      g.runs.push(r);
-    }
-    return [...m.values()].map(g=>{
-      const pct = g.n ? pct1NoUp(g.sum/g.n) : 0;
-      return { ...g, pct, cls: classifyPct(pct) };
-    });
-  }
-// Opcional: folders esperados aunque no aparezcan en el log
-const EXPECTED_FOLDERS = []; // si querés, ponés strings acá
-
-// Opcional: si un folder NO aparece en el log, podés seedear bases posibles
-const SEED_BASES_BY_FOLDER = {
-  // "TPL_NZD_Initial_Data_Load (REPLICATE CHANGES)": ["TM0 NZD IDL", "TM1 NZD IDL", "GLS NZD IDL", "GL NZD IDL"],
-};
-
-function fillMissingRunsWithZero(tasks, runsAgg){
-  // tasks por folder
-  const byFolder = new Map();
-  for (const t of tasks){
-    const f = t.folder || "—";
-    if (!byFolder.has(f)) byFolder.set(f, []);
-    byFolder.get(f).push(t);
-  }
-
-  // runs existentes por folder
-  const runsByFolder = new Map();
-  for (const r of runsAgg){
-    const f = r.folder || "—";
-    if (!runsByFolder.has(f)) runsByFolder.set(f, new Map());
-    runsByFolder.get(f).set(r.run, r);
-  }
-
-  // folders = log U esperados
-  const folderSet = new Set([...byFolder.keys(), ...EXPECTED_FOLDERS]);
-
-  const filled = [];
-
-  for (const folder of folderSet){
-    const folderTasks = byFolder.get(folder) || [];
-    const existingMap = runsByFolder.get(folder) || new Map();
-
-    // 1) detectar TODOS los bases presentes (TM0/TM1/GLS/GL/etc.)
-    const baseSet = new Set();
-
-    for (const t of folderTasks){
-      const b = extractRunBase(t.run);
-      if (b) baseSet.add(b);
-    }
-
-    // si el folder no aparece aún en log, usamos seeds (si existen)
-    if (baseSet.size === 0){
-      const seeds = SEED_BASES_BY_FOLDER[folder] || [];
-      for (const b of seeds) baseSet.add(String(b||"").trim());
-    }
-
-    // fallback si no hay nada
-    if (baseSet.size === 0) baseSet.add("RUN");
-
-    // 2) agrego runs reales
-    for (const r of existingMap.values()){
-      filled.push(r);
-    }
-
-    // 3) placeholders por cada base
-    for (const base of baseSet){
-      for (const suffix of EXPECTED_RUN_SUFFIXES){
-        const expectedName = `${base} ${suffix}`.trim();
-        if (!existingMap.has(expectedName)){
-          filled.push({
-            folder,
-            run: expectedName,
-            stage: suffix, // para orden
-            pct: 0,
-            cls: "bad",
-            sum: 0,
-            n: 0,
-            objects: []
-          });
-        }
-      }
     }
   }
-
-  return filled;
+  return flat.sort((a,b)=>a.order-b.order);
 }
-  function render(){
-    ensureDefaultSelections();
 
-    const folders = countBy(TASKS, t=>t.folder);
-    const runs = countBy(TASKS, t=>t.run);
-    const types = countBy(TASKS, t=>t.type);
+async function parseLog(file){
+  if(file.name.toLowerCase().endsWith(".json")){
+    const txt = await file.text();
+    return JSON.parse(txt).tasks||[];
+  }
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf,{type:"array"});
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws,{defval:""});
+}
 
-    buildChecklist("folderList", folders, FILTERS.folders, $("folderSearch").value);
-    buildChecklist("runList", runs, FILTERS.runs, $("runSearch").value);
-    buildChecklist("typeList", types, FILTERS.types);
+function merge(){
+  MERGED = BASELINE.map(bt=>{
+    const match = RUNLOG.find(r=>{
+      return (r.TASK_KEY && r.TASK_KEY===bt.task_key)
+    });
 
-    const runsAgg = aggregateRunPct(objects);
-    const runsAggFilled = fillMissingRunsWithZero(tasks, runsAgg);
-    const foldersAgg = aggregateFolderPct(runsAggFilled); 
-    $("metaText").textContent = `${tasks.length} tablas · ${objects.length} objects · ${runsAgg.length} runs · ${foldersAgg.length} folders`;
+    if(!match){
+      return {...bt, pct:0, exec:false};
+    }
 
-    const okN = objects.filter(o=>o.cls==="ok").length;
-    const warnN = objects.filter(o=>o.cls==="warn").length;
-    const badN = objects.filter(o=>o.cls==="bad").length;
-    $("pillCounts").innerHTML = `Objects: <span class="mono">${objects.length}</span> · OK <span class="mono">${okN}</span> · EN CURSO <span class="mono">${warnN}</span> · CRÍTICO <span class="mono">${badN}</span>`;
+    const p = pct1(Number(match["%"]||match.progress||0));
+    return {...bt, pct:p, exec:true};
+  });
+}
 
-    // TREE: Folder -> Run (sorted by stage order) -> Object -> Tables
-    const tree = $("tree");
-    tree.innerHTML = "";
+function aggregate(items){
+  const exec = items.filter(x=>x.exec);
+  if(exec.length===0) return 0;
+  return pct1(exec.reduce((s,x)=>s+x.pct,0)/exec.length);
+}
 
-    foldersAgg.sort((a,b)=> a.folder.localeCompare(b.folder));
-    for (const f of foldersAgg){
-      const folderDetails = document.createElement("details");
-      folderDetails.open = false;
+function render(){
+  const tree = $("tree");
+  tree.innerHTML = "";
 
-      folderDetails.innerHTML = `
+  const blocks = {};
+
+  for(const t of MERGED){
+    if(!blocks[t.block]) blocks[t.block]={};
+    if(!blocks[t.block][t.subblock]) blocks[t.block][t.subblock]=[];
+    blocks[t.block][t.subblock].push(t);
+  }
+
+  for(const block in blocks){
+    const allTasks = Object.values(blocks[block]).flat();
+    const bp = aggregate(allTasks);
+    const bcls = classify(bp);
+
+    const bDet = document.createElement("details");
+    bDet.innerHTML = `
+      <summary>
+        <div>${block}</div>
+        <div class="pct ${bcls}">${bp.toFixed(1)}%</div>
+      </summary>
+      <div class="children"></div>
+    `;
+
+    const bChild = bDet.querySelector(".children");
+
+    for(const sub in blocks[block]){
+      const sp = aggregate(blocks[block][sub]);
+      const scls = classify(sp);
+
+      const sDet = document.createElement("details");
+      sDet.innerHTML = `
         <summary>
-          <div class="sumLeft">
-            <span class="caret"></span>
-            <span class="chip">FOLDER</span>
-            <div class="nodeTitle" title="${escapeHtml(f.folder)}">${escapeHtml(f.folder)}</div>
-          </div>
-          <div class="meta">
-            <span class="pct ${f.cls}">${f.pct.toFixed(1)}%</span>
-          </div>
+          <div>${sub}</div>
+          <div class="pct ${scls}">${sp.toFixed(1)}%</div>
         </summary>
         <div class="children"></div>
       `;
 
-      const folderChildren = folderDetails.querySelector(".children");
+      const sChild = sDet.querySelector(".children");
 
-      const runsList = f.runs.slice().sort((a,b)=> {
-        const ar = stageRank(a.stage);
-        const br = stageRank(b.stage);
-        if (ar !== br) return ar - br;
-        return a.run.localeCompare(b.run);
-      });
-
-      for (const r of runsList){
-        const runDetails = document.createElement("details");
-        runDetails.open = false;
-
-        const stageTxt = r.stage ? r.stage : "—";
-        runDetails.innerHTML = `
-          <summary>
-            <div class="sumLeft">
-              <span class="caret"></span>
-              <span class="chip">RUN</span>
-              <div class="nodeTitle" title="${escapeHtml(r.run)}">${escapeHtml(r.run)}</div>
-              <span class="chip" title="Stage">${escapeHtml(stageTxt)}</span>
-            </div>
-            <div class="meta">
-              <span class="pct ${r.cls}">${r.pct.toFixed(1)}%</span>
-            </div>
-          </summary>
-          <div class="children"></div>
+      for(const t of blocks[block][sub]){
+        const cls = classify(t.pct);
+        const div = document.createElement("div");
+        div.className="task";
+        div.innerHTML = `
+          <div>
+            ${t.task}
+            <span class="status">${statusLabel(t.pct)}</span>
+          </div>
+          <div class="pct ${cls}">${t.pct.toFixed(1)}%</div>
         `;
-
-        const runChildren = runDetails.querySelector(".children");
-
-        const objList = r.objects.slice().sort((a,b)=> a.object.localeCompare(b.object));
-        for (const o of objList){
-          const objDetails = document.createElement("details");
-          objDetails.open = false;
-
-          objDetails.innerHTML = `
-            <summary>
-              <div class="sumLeft">
-                <span class="caret"></span>
-                <span class="chip">OBJ</span>
-                <div class="nodeTitle" title="${escapeHtml(o.object)}">${escapeHtml(o.object)}</div>
-                <span class="chip mono" title="Module">${escapeHtml(o.module || "—")}</span>
-              </div>
-              <div class="meta">
-                <span class="pct ${o.cls}">${o.pct.toFixed(1)}%</span>
-              </div>
-            </summary>
-            <div class="children"></div>
-          `;
-
-          const objChildren = objDetails.querySelector(".children");
-          const tables = o.tables.slice().sort((a,b)=> (a.table||"").localeCompare(b.table||""));
-          for (const t of tables){
-            const row = document.createElement("div");
-            row.className = "childRow";
-
-            const sCode = (t.status_code || "").toUpperCase();
-            const sCls = statusClass(sCode);
-
-            row.innerHTML = `
-              <div class="sumLeft" style="gap:10px;">
-                <span class="chip">TAB</span>
-                <span class="mono" title="${escapeHtml(t.table)}">${escapeHtml(t.table || "—")}</span>
-                <span class="mono" style="color:var(--muted);" title="#records">#${formatInt(t.records)}</span>
-                <span class="statusTag ${sCls}" title="${escapeHtml(statusLabel(sCode))}">
-                  <span class="sDot"></span>
-                  <span class="mono">${escapeHtml(sCode || "—")}</span>
-                  <span style="color:var(--muted);">· ${escapeHtml(statusLabel(sCode))}</span>
-                </span>
-              </div>
-              <div class="meta">
-                <span class="pct ${classifyPct(pct1NoUp(t.progress))}">${pct1NoUp(t.progress).toFixed(1)}%</span>
-              </div>
-            `;
-            objChildren.appendChild(row);
-          }
-
-          runChildren.appendChild(objDetails);
-        }
-
-        folderChildren.appendChild(runDetails);
+        sChild.appendChild(div);
       }
 
-      tree.appendChild(folderDetails);
+      bChild.appendChild(sDet);
     }
 
-    // TABLE (detail)
-    const tb = $("tbody");
-    tb.innerHTML = "";
-    $("tableMeta").textContent = `Mostrando ${tasks.length} filas`;
-
-    // Orden base (como ya tenías)
-const tasksSorted = tasks.slice().sort((a,b)=>{
-  const fd = (a.folder||"").localeCompare(b.folder||"");
-  if (fd !== 0) return fd;
-  const sr = stageRank(a.stage) - stageRank(b.stage);
-  if (sr !== 0) return sr;
-  const rd = (a.run||"").localeCompare(b.run||"");
-  if (rd !== 0) return rd;
-  const od = (a.object||"").localeCompare(b.object||"");
-  if (od !== 0) return od;
-  return (a.table||"").localeCompare(b.table||"");
-});
-
-// 1) calculamos grupo por %
-const rowsWithGroup = tasksSorted.map(t=>{
-  const p = pct1NoUp(t.progress);
-  const cls = classifyPct(p);
-  const g = groupKeyFromPct(p);
-  return { t, p, cls, g };
-});
-
-// 2) agrupamos y ordenamos grupos CRÍTICO -> EN CURSO -> OK
-rowsWithGroup.sort((a,b)=>{
-  const gr = groupRank(a.g) - groupRank(b.g);
-  if (gr !== 0) return gr;
-
-  // dentro de cada grupo mantenemos tu orden original
-  const fd = (a.t.folder||"").localeCompare(b.t.folder||"");
-  if (fd !== 0) return fd;
-  const sr = stageRank(a.t.stage) - stageRank(b.t.stage);
-  if (sr !== 0) return sr;
-  const rd = (a.t.run||"").localeCompare(b.t.run||"");
-  if (rd !== 0) return rd;
-  const od = (a.t.object||"").localeCompare(b.t.object||"");
-  if (od !== 0) return od;
-  return (a.t.table||"").localeCompare(b.t.table||"");
-});
-
-// 3) render con separadores
-let currentGroup = null;
-
-const groupCounts = rowsWithGroup.reduce((acc, r)=>{
-  acc[r.g] = (acc[r.g] || 0) + 1;
-  return acc;
-}, {});
-
-for (const r of rowsWithGroup){
-  const t = r.t;
-
-  if (r.g !== currentGroup){
-    currentGroup = r.g;
-
-    const grpTr = document.createElement("tr");
-    grpTr.className = "groupRow";
-    grpTr.innerHTML = `
-      <td colspan="10">
-        <span class="groupPill ${r.cls}">
-          <span class="dot ${r.cls}" style="width:8px;height:8px;border-radius:999px;"></span>
-          ${escapeHtml(currentGroup)}
-        </span>
-        <span class="mono" style="margin-left:10px;">${groupCounts[currentGroup]} filas</span>
-      </td>
-    `;
-    tb.appendChild(grpTr);
+    tree.appendChild(bDet);
   }
 
-  const sCode = (t.status_code || "").toUpperCase();
-  const sCls = statusClass(sCode);
-  const stageTxt = t.stage ? t.stage : "—";
-
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td>${escapeHtml(t.folder)}</td>
-    <td>${escapeHtml(stageTxt)}</td>
-    <td>${escapeHtml(t.run)}</td>
-    <td class="mono">${escapeHtml(t.type)}</td>
-    <td class="mono">${escapeHtml(t.module)}</td>
-    <td>${escapeHtml(t.object)}</td>
-    <td class="mono">${escapeHtml(t.table)}</td>
-    <td class="right mono">${formatInt(t.records)}</td>
-    <td class="right mono">
-      <span class="progressBar"><i style="width:${Math.max(0,Math.min(100,t.progress))}%"></i></span>
-      ${r.p.toFixed(1)}%
-    </td>
-    <td>
-      <span class="statusTag ${sCls}" title="${escapeHtml(statusLabel(sCode))}">
-        <span class="sDot"></span>
-        <span class="mono">${escapeHtml(sCode || "—")}</span>
-        <span style="color:var(--muted);">· ${escapeHtml(statusLabel(sCode))}</span>
-      </span>
-    </td>
-  `;
-  tb.appendChild(tr);
+  $("meta").textContent = `${BASELINE.length} tareas baseline · ${RUNLOG.length} filas log`;
 }
 
-    localStorage.setItem(LS_KEY, JSON.stringify({ tasks: TASKS }));
+$("baselineInput").addEventListener("change", async e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const txt = await file.text();
+  BASELINE = parseBaseline(JSON.parse(txt));
+});
+
+$("logInput").addEventListener("change", async e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  RUNLOG = await parseLog(file);
+});
+
+$("applyBtn").addEventListener("click", ()=>{
+  if(!BASELINE.length){
+    alert("Cargá baseline primero");
+    return;
   }
+  merge();
+  render();
+});
 
-  function formatInt(n){
-    n = Number(n||0);
-    return n.toLocaleString("es-AR");
-  }
-
-  // ===== File parsing =====
-  function pick(row, keys){
-    for (const k of keys){
-      if (k in row) return row[k];
-    }
-    return "";
-  }
-
-  function normalizeTasks(rows){
-    return (Array.isArray(rows) ? rows : []).map((r, idx) => {
-      const folder = pick(r, ["Folder","FOLDER","folder"]);
-      const run  = pick(r, ["Run name","RUN NAME","Run","run_name","RUN"]);
-      const type = pick(r, ["Type","TYPE","type"]);
-      const block= pick(r, ["Block","BLOCK","block"]);
-      const module = pick(r, ["Module ID","MODULE ID","Module","module_id","MODULE"]);
-      const object = pick(r, ["Data object","DATA OBJECT","Object","data_object","OBJECT"]);
-      const table = pick(r, ["Table","TABLE","table_name"]);
-      const status = pick(r, ["Status","STATUS","status"]);
-      const progress = pick(r, ["Progress","PROGRESS","progress"]);
-      const records = pick(r, ["Number of rec.","Number of records","# records","records_count","RECORDS"]);
-
-      const t = {
-        id: `${folder}__${run}__${object}__${table}__${idx}`,
-        folder: String(folder||"—").trim() || "—",
-        run: String(run||"—").trim() || "—",
-        type: String(type||"—").trim() || "—",
-        block: String(block||"").trim(),
-        module: String(module||"—").trim() || "—",
-        object: String(object||"—").trim() || "—",
-        table: String(table||"—").trim() || "—",
-        status: String(status||"").trim(),
-        status_code: String(status||"").toUpperCase().trim(),
-        progress: toPctNumber(progress),
-        records: toInt(records),
-      };
-
-      t.stage = detectStage(t);
-
-      return t;
-    }).filter(t => t.folder !== "—" || t.run !== "—" || t.object !== "—" || t.table !== "—");
-  }
-
-  async function parseFile(file){
-    const name = (file.name||"").toLowerCase();
-
-    if (name.endsWith(".json")){
-      const txt = await file.text();
-      const obj = JSON.parse(txt);
-      const rows = Array.isArray(obj) ? obj : (obj.tasks || []);
-      return normalizeTasks(rows);
-    }
-
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, {type:"array"});
-    const sheetName = wb.SheetNames[0];
-    const ws = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
-    return normalizeTasks(rows);
-  }
-
-  // ===== Buttons =====
-  $("applyBtn").addEventListener("click", render);
-
-  $("selectAllBtn").addEventListener("click", ()=>{
-    FILTERS.folders.clear(); FILTERS.runs.clear(); FILTERS.types.clear();
-    for (const t of TASKS){
-      FILTERS.folders.add(t.folder);
-      FILTERS.runs.add(t.run);
-      FILTERS.types.add(t.type);
-    }
-    render();
-  });
-
-  $("selectNoneBtn").addEventListener("click", ()=>{
-    FILTERS.folders.clear(); FILTERS.runs.clear(); FILTERS.types.clear();
-    render();
-  });
-
-  $("exportJsonBtn").addEventListener("click", ()=>{
-    const data = JSON.stringify({ tasks: TASKS }, null, 2);
-    downloadText("migration_log_export.json", data);
-  });
-
-  $("importJsonBtn").addEventListener("click", ()=> $("importInput").click());
-
-  $("importInput").addEventListener("change", async (e)=>{
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try{
-      const tasks = await parseFile(file);
-      TASKS = tasks;
-      setFileBadge(file.name);
-      FILTERS.folders.clear(); FILTERS.runs.clear(); FILTERS.types.clear();
-      render();
-    }catch(err){
-      console.error(err);
-      alert("JSON inválido.");
-    }finally{
-      e.target.value = "";
-    }
-  });
-
-  $("clearBtn").addEventListener("click", ()=>{
-    if (!confirm("¿Seguro que querés limpiar el log local?")) return;
-    TASKS = [];
-    localStorage.removeItem(LS_KEY);
-    FILTERS.folders.clear(); FILTERS.runs.clear(); FILTERS.types.clear();
-    setFileBadge("Sin archivo");
-    render();
-  });
-
-  $("fileInput").addEventListener("change", async (e)=>{
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try{
-      const tasks = await parseFile(file);
-      TASKS = tasks;
-      setFileBadge(file.name);
-      FILTERS.folders.clear(); FILTERS.runs.clear(); FILTERS.types.clear();
-      render();
-    }catch(err){
-      console.error(err);
-      alert("No pude leer el archivo. Si querés, mandame un sample con headers y lo ajusto.");
-    }
-  });
-
-  // filter search inputs
-  $("folderSearch").addEventListener("input", ()=> render());
-  $("runSearch").addEventListener("input", ()=> render());
-  $("globalSearch").addEventListener("input", (e)=>{
-    FILTERS.q = e.target.value || "";
-    render();
-  });
-
-  // ===== Download helper =====
-  function downloadText(filename, text){
-    const blob = new Blob([text], {type:"application/json"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  // ===== Init =====
-  (function init(){
-    const s = localStorage.getItem(LS_KEY);
-    if (s){
-      try{
-        const obj = JSON.parse(s);
-        TASKS = normalizeTasks(obj.tasks || obj || []);
-        setFileBadge("Local");
-      }catch{}
-    }
-    render();
-  })();
+$("clearBtn").addEventListener("click", ()=>{
+  BASELINE=[]; RUNLOG=[]; MERGED=[];
+  $("tree").innerHTML="";
+  $("meta").textContent="Sin datos";
+});
 </script>
 </body>
-</html>
+</html> 

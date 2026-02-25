@@ -1,0 +1,178 @@
+{
+"baseline_id": "TM4_NZD_Initial_Data_Load",
+"folder": "TM4_NZD_Initial_Data_Load",
+"blocks": [
+{
+"block": "TM4 NZD IDL Preparation",
+"subblocks": [
+{
+"subblock": null,
+"tasks": [
+{
+"task": "TC Be sure global selections mapping and file inputs are ready on source",
+"type": "other",
+"from": "",
+"to": "",
+"order": 1,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preparation |  | TC Be sure global selections mapping and file inputs are ready on source"
+},
+{
+"task": "NZD Set global parameter NZD_INSTANCE_EQ_I",
+"type": "modify",
+"from": "",
+"to": "",
+"order": 2,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preparation |  | NZD Set global parameter NZD_INSTANCE_EQ_I"
+},
+{
+"task": "NZD Remember change parameter NZD_RUN_ID for each Data load",
+"type": "modify",
+"from": "",
+"to": "",
+"order": 3,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preparation |  | NZD Remember change parameter NZD_RUN_ID for each Data load"
+},
+{
+"task": "Tell partner creation of some tables index | SOURCE",
+"type": "other",
+"from": "SOURCE",
+"to": "",
+"order": 4,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preparation |  | Tell partner creation of some tables index | SOURCE"
+},
+{
+"task": "Tables Index creations on Source | SOURCE",
+"type": "other",
+"from": "SOURCE",
+"to": "",
+"order": 5,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preparation |  | Tables Index creations on Source | SOURCE"
+},
+{
+"task": "Backup NRIV (TGT AS SRC) | TGT_AS_SRC",
+"type": "export",
+"from": "TGT AS SRC",
+"to": "",
+"order": 6,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preparation |  | Backup NRIV (TGT AS SRC) | TGT_AS_SRC"
+},
+{
+"task": "Export NRIV | SOURCE",
+"type": "export",
+"from": "SOURCE",
+"to": "",
+"order": 7,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preparation |  | Export NRIV | SOURCE"
+},
+{
+"task": "Import NRIV | SOURCE ➤ TARGET",
+"type": "import",
+"from": "SOURCE",
+"to": "TARGET",
+"order": 8,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preparation |  | Import NRIV | SOURCE ➤ TARGET"
+}
+]
+}
+]
+},
+{
+"block": "TM4 NZD IDL Preselection",
+"subblocks": [
+{
+"subblock": null,
+"tasks": [
+{
+"task": "00 - Preselection FICA - Step 1 | SOURCE",
+"type": "other",
+"from": "SOURCE",
+"to": "",
+"order": 9,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preselection |  | 00 - Preselection FICA - Step 1 | SOURCE"
+},
+{
+"task": "00 - Preselection FICA - Step 2.1 - Export XBLNR - Date | SOURCE",
+"type": "export",
+"from": "SOURCE",
+"to": "",
+"order": 10,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preselection |  | 00 - Preselection FICA - Step 2.1 - Export XBLNR - Date | SOURCE"
+},
+{
+"task": "00 - Preselection FICA - Step 2.2 - Modify XBLNR - Deletion | SOURCE",
+"type": "modify",
+"from": "SOURCE",
+"to": "",
+"order": 11,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preselection |  | 00 - Preselection FICA - Step 2.2 - Modify XBLNR - Deletion | SOURCE"
+},
+{
+"task": "00 - Preselection FICA - Step 2.3 - Documents Rules | ?",
+"type": "other",
+"from": "",
+"to": "",
+"order": 12,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preselection |  | 00 - Preselection FICA - Step 2.3 - Documents Rules | ?"
+},
+{
+"task": "00 - Preselection FICA - Step 2.4 - Modify FICA_INNV | SOURCE",
+"type": "modify",
+"from": "SOURCE",
+"to": "",
+"order": 13,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preselection |  | 00 - Preselection FICA - Step 2.4 - Modify FICA_INNV | SOURCE"
+},
+{
+"task": "00 - Preselection FICA - Step 3 | SOURCE",
+"type": "other",
+"from": "SOURCE",
+"to": "",
+"order": 14,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preselection |  | 00 - Preselection FICA - Step 3 | SOURCE"
+},
+{
+"task": "00 - Preselection ISU (Post FICA /SNP/TE_FICAINNV filled) | SOURCE",
+"type": "other",
+"from": "SOURCE",
+"to": "",
+"order": 15,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preselection |  | 00 - Preselection ISU (Post FICA /SNP/TE_FICAINNV filled) | SOURCE"
+},
+{
+"task": "00 - Preselection ISU (No dependency) | SOURCE",
+"type": "other",
+"from": "SOURCE",
+"to": "",
+"order": 16,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preselection |  | 00 - Preselection ISU (No dependency) | SOURCE"
+},
+{
+"task": "00 - Preselection FI (Post FICA Step 3) | SOURCE",
+"type": "other",
+"from": "SOURCE",
+"to": "",
+"order": 17,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preselection |  | 00 - Preselection FI (Post FICA Step 3) | SOURCE"
+},
+{
+"task": "00 - Preselection QM (TM3 IBM Truncate /SNP/TE_QMEL_QM) | SOURCE",
+"type": "truncate",
+"from": "SOURCE",
+"to": "",
+"order": 18,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preselection |  | 00 - Preselection QM (TM3 IBM Truncate /SNP/TE_QMEL_QM) | SOURCE"
+},
+{
+"task": "01 - Preselection QM | SOURCE",
+"type": "other",
+"from": "SOURCE",
+"to": "",
+"order": 19,
+"task_key": "TM4_NZD_Initial_Data_Load | TM4 NZD IDL Preselection |  | 01 - Preselection QM | SOURCE"
+}
+]
+}
+]
+}
+]
+}
