@@ -3,753 +3,534 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Runs Monitor</title>
+  <title>Migration Status Portal</title>
+
+  <!-- SheetJS (XLSX) + Chart.js (curvas) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
   <style>
     :root{
-      --bg:#0b1220;
-      --panel:#0f172a;
-      --panel2:#0b1324;
-      --muted:#94a3b8;
-      --text:#e2e8f0;
-      --border:#1f2a44;
-      --chip:#111c33;
-      --ok:#22c55e;
-      --warn:#f59e0b;
-      --err:#ef4444;
-      --idle:#64748b;
-      --shadow: 0 12px 30px rgba(0,0,0,.35);
-      --radius:14px;
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --border:#e6e8ef;
+      --text:#101828;
+      --muted:#667085;
+      --shadow: 0 12px 30px rgba(16,24,40,.08);
+
+      --ok:#12b76a;
+      --warn:#f79009;
+      --bad:#f04438;
+
+      --blue:#2563eb;
+      --chip:#f2f4f7;
+      --chip2:#eef2ff;
+      --radius:16px;
+
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
     }
     *{box-sizing:border-box}
     body{
       margin:0;
       font-family:var(--sans);
-      background: radial-gradient(1200px 700px at 15% 10%, #142046 0%, transparent 60%),
-                  radial-gradient(900px 600px at 80% 35%, #1a2d66 0%, transparent 55%),
-                  var(--bg);
+      background:var(--bg);
       color:var(--text);
     }
     header{
-      position:sticky; top:0; z-index:5;
-      background: rgba(11,18,32,.8);
-      backdrop-filter: blur(10px);
+      padding:18px 20px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+    }
+    header h1{
+      font-size:16px;
+      margin:0;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    header h1 .badge{
+      font-size:12px;
+      padding:4px 10px;
+      border-radius:999px;
+      background:var(--chip);
+      border:1px solid var(--border);
+      color:var(--muted);
+    }
+    header .right{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .layout{
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap:16px;
+      padding: 0 20px 22px;
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+    @media (max-width: 1100px){
+      .layout{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+    }
+    .card h2{
+      font-size:13px;
+      margin:0;
+      padding:14px 14px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
       border-bottom:1px solid var(--border);
     }
-    .wrap{
-      max-width: 1400px;
-      margin:0 auto;
-      padding:16px 18px;
+    .card h2 small{ color:var(--muted); font-weight:500; }
+
+    /* Sidebar */
+    .sidebar{
+      padding:12px;
     }
-    .topbar{
-      display:flex; gap:12px; align-items:center; justify-content:space-between;
-    }
-    .brand{
-      display:flex; gap:10px; align-items:center;
-      min-width: 240px;
-    }
-    .logo{
-      width:34px; height:34px; border-radius:10px;
-      background: linear-gradient(135deg, #60a5fa 0%, #22c55e 60%, #f59e0b 100%);
-      box-shadow: var(--shadow);
-    }
-    .title{
-      display:flex; flex-direction:column;
-      line-height:1.15;
-    }
-    .title b{font-size:14px}
-    .title span{font-size:12px;color:var(--muted)}
-    .controls{
-      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-      justify-content:flex-end;
-    }
-    .control{
-      display:flex; align-items:center; gap:8px;
-      padding:10px 12px;
-      background: rgba(15,23,42,.6);
+    .section{
       border:1px solid var(--border);
-      border-radius: 12px;
-      box-shadow: 0 8px 18px rgba(0,0,0,.25);
+      border-radius:14px;
+      padding:12px;
+      margin-bottom:12px;
+      background:#fff;
     }
-    .control label{font-size:12px;color:var(--muted)}
-    select,input{
-      background: transparent;
-      border: 0;
-      outline: none;
-      color: var(--text);
-      font-size: 13px;
-      min-width: 160px;
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
     }
-    input::placeholder{color:#64748b}
     .btn{
       cursor:pointer;
       border:1px solid var(--border);
-      background: rgba(17,28,51,.6);
-      color: var(--text);
+      background:#fff;
       padding:10px 12px;
-      border-radius: 12px;
+      border-radius:12px;
+      font-size:13px;
       transition: transform .04s ease, background .15s ease;
-      font-size:13px;
-      display:flex; align-items:center; gap:8px;
-      user-select:none;
     }
-    .btn:active{transform: translateY(1px)}
-    .pill{
-      padding:6px 10px;
-      border-radius: 999px;
-      font-size:12px;
-      background: rgba(17,28,51,.6);
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: var(--blue);
+      color:#fff;
+      border-color: rgba(37,99,235,.4);
+    }
+    .btn.soft{
+      background: var(--chip2);
+      border-color: rgba(37,99,235,.15);
+      color: #1d4ed8;
+    }
+
+    .field{
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      margin-top:10px;
+    }
+    .label{ font-size:12px; color:var(--muted); }
+    input[type="text"]{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
       border:1px solid var(--border);
-      color: var(--muted);
-      display:flex; align-items:center; gap:8px;
-    }
-    .dot{width:8px;height:8px;border-radius:999px;background:var(--idle)}
-    main .grid{
-      display:grid;
-      grid-template-columns: 380px 1fr;
-      gap:14px;
-      padding: 14px 18px 22px;
-      max-width:1400px;
-      margin:0 auto;
-    }
-    @media (max-width: 1050px){
-      main .grid{grid-template-columns: 1fr}
-    }
-    .card{
-      background: rgba(15,23,42,.62);
-      border:1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .card h2{
-      margin:0;
+      outline:none;
       font-size:13px;
-      letter-spacing:.2px;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-      display:flex; align-items:center; justify-content:space-between;
     }
-    .card h2 small{color:var(--muted); font-weight:500}
-    .sidebar{
-      max-height: calc(100vh - 110px);
+
+    .checklist{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      max-height: 140px;
       overflow:auto;
+      padding:6px 4px;
     }
-    .tree{
-      padding: 10px 10px 14px;
-    }
-    details{
-      border:1px solid rgba(31,42,68,.65);
-      border-radius: 12px;
-      background: rgba(11,19,36,.55);
-      margin:10px 0;
-      overflow:hidden;
-    }
-    summary{
-      list-style:none;
-      cursor:pointer;
-      padding: 10px 12px;
-      display:flex; align-items:center; justify-content:space-between;
-      gap:10px;
-    }
-    summary::-webkit-details-marker{display:none}
-    .sum-left{display:flex; align-items:center; gap:10px; min-width:0}
-    .caret{
-      width: 9px; height: 9px;
-      border-right:2px solid var(--muted);
-      border-bottom:2px solid var(--muted);
-      transform: rotate(-45deg);
-      opacity:.9;
-    }
-    details[open] .caret{transform: rotate(45deg)}
-    .node-title{
+    .checkitem{
+      display:flex;
+      gap:8px;
+      align-items:center;
       font-size:13px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      color:#111827;
+      padding:6px 8px;
+      border-radius:10px;
     }
-    .meta{
-      display:flex; align-items:center; gap:8px;
+    .checkitem:hover{ background:#f8fafc; }
+    .checkitem .count{
+      margin-left:auto;
+      font-size:12px;
       color:var(--muted);
+      font-family:var(--mono);
+    }
+
+    .hint{
       font-size:12px;
-      flex-shrink:0;
+      color:var(--muted);
+      line-height:1.35;
     }
-    .pct{
-      font-family: var(--mono);
-      font-size:12px;
-      padding:4px 8px;
-      border-radius: 999px;
-      border:1px solid rgba(31,42,68,.9);
-      background: rgba(17,28,51,.6);
-      min-width:72px;
-      text-align:right;
+
+    /* Main */
+    .main{
+      display:flex;
+      flex-direction:column;
+      gap:14px;
     }
-    .pct.ok{border-color: rgba(34,197,94,.35); color:#bbf7d0}
-    .pct.warn{border-color: rgba(245,158,11,.35); color:#fde68a}
-    .pct.idle{border-color: rgba(148,163,184,.25); color:#cbd5e1}
-    .pct.err{border-color: rgba(239,68,68,.35); color:#fecaca}
-    .children{
-      padding: 8px 10px 10px 22px;
-      border-top: 1px solid rgba(31,42,68,.55);
-      background: rgba(8,14,28,.35);
+    .content{
+      padding: 12px;
     }
-    .child{
-      display:flex; align-items:center; justify-content:space-between;
-      padding:8px 10px;
-      border:1px solid rgba(31,42,68,.55);
-      border-radius: 12px;
-      margin:8px 0;
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:14px;
+    }
+    .chartBox{
+      padding: 12px;
+    }
+    canvas{ width:100% !important; height:240px !important; }
+
+    .pillRow{
+      display:flex;
       gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      padding: 10px 12px;
+      border-top:1px solid var(--border);
+      background:#fcfcfd;
+      border-bottom-left-radius: var(--radius);
+      border-bottom-right-radius: var(--radius);
     }
-    .child .left{
-      display:flex; align-items:center; gap:10px; min-width:0;
+    .pill{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:var(--chip);
+      font-size:12px;
+      color:var(--muted);
     }
-    .chip{
-      font-size:11px;
-      padding:5px 8px;
-      border-radius: 999px;
-      border:1px solid rgba(31,42,68,.75);
-      background: rgba(17,28,51,.55);
-      color: var(--muted);
-    }
-    .badge{
-      font-family: var(--mono);
-      font-size:11px;
-      padding: 5px 8px;
-      border-radius: 999px;
-      border:1px solid rgba(31,42,68,.75);
-      background: rgba(17,28,51,.55);
-      color: var(--muted);
-    }
-    .badge.ok{border-color: rgba(34,197,94,.35); color:#bbf7d0}
-    .badge.warn{border-color: rgba(245,158,11,.35); color:#fde68a}
-    .badge.err{border-color: rgba(239,68,68,.35); color:#fecaca}
-    .badge.idle{border-color: rgba(148,163,184,.25); color:#cbd5e1}
-    .tablewrap{
+    .dot{ width:8px; height:8px; border-radius:999px; background:#98a2b3; }
+    .dot.ok{ background:var(--ok); }
+    .dot.warn{ background:var(--warn); }
+    .dot.bad{ background:var(--bad); }
+
+    /* Tables */
+    .tableWrap{
       overflow:auto;
-      max-height: calc(100vh - 110px);
+      border-radius: 14px;
+      border:1px solid var(--border);
     }
     table{
       width:100%;
       border-collapse: collapse;
-      min-width: 1100px;
-      font-size: 12px;
+      min-width: 980px;
+      font-size:12.5px;
     }
     thead th{
-      position: sticky; top:0;
-      background: rgba(11,18,32,.92);
-      backdrop-filter: blur(8px);
+      position: sticky;
+      top:0;
+      z-index:2;
+      background:#fff;
       text-align:left;
       padding:10px 10px;
       border-bottom:1px solid var(--border);
-      color:#cbd5e1;
+      color:#475467;
       font-weight:600;
       white-space:nowrap;
     }
     tbody td{
       padding:9px 10px;
-      border-bottom:1px solid rgba(31,42,68,.45);
-      color:#e2e8f0;
-      vertical-align: middle;
+      border-bottom:1px solid #f0f2f6;
       white-space:nowrap;
+      color:#101828;
     }
-    tbody tr:hover{background: rgba(96,165,250,.06)}
-    .mono{font-family: var(--mono)}
-    .muted{color: var(--muted)}
-    .right{text-align:right}
-    .progressbar{
-      width: 110px;
+    tbody tr:hover{ background:#f8fafc; }
+    .mono{ font-family:var(--mono); }
+    .right{ text-align:right; }
+    .statusTag{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:#fff;
+      font-size:12px;
+      color:#344054;
+    }
+    .statusTag .sDot{ width:8px; height:8px; border-radius:999px; background:#98a2b3; }
+    .statusTag.ok{ border-color: rgba(18,183,106,.25); background: rgba(18,183,106,.06); }
+    .statusTag.ok .sDot{ background: var(--ok); }
+    .statusTag.warn{ border-color: rgba(247,144,9,.25); background: rgba(247,144,9,.06); }
+    .statusTag.warn .sDot{ background: var(--warn); }
+    .statusTag.bad{ border-color: rgba(240,68,56,.25); background: rgba(240,68,56,.06); }
+    .statusTag.bad .sDot{ background: var(--bad); }
+
+    .progressBar{
+      width: 120px;
       height: 8px;
-      border-radius: 999px;
-      border:1px solid rgba(31,42,68,.8);
-      background: rgba(17,28,51,.55);
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:#f2f4f7;
       overflow:hidden;
       display:inline-block;
       vertical-align:middle;
       margin-right:8px;
     }
-    .progressbar > i{
+    .progressBar > i{
       display:block;
       height:100%;
       width:0%;
-      background: linear-gradient(90deg, #60a5fa 0%, #22c55e 70%);
+      background: linear-gradient(90deg, #60a5fa, #12b76a);
     }
-    .rowStatus{
-      display:flex; align-items:center; gap:8px;
+
+    .topSearch{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      padding: 12px;
     }
-    .statusDot{
-      width:8px;height:8px;border-radius:999px;background:var(--idle);
-    }
-    .statusDot.ok{background:var(--ok)}
-    .statusDot.warn{background:var(--warn)}
-    .statusDot.err{background:var(--err)}
-    .statusDot.idle{background:var(--idle)}
-    .small{font-size:11px}
-    .hint{
-      font-size:12px;
-      color:var(--muted);
-      padding: 10px 14px;
-      border-top:1px solid var(--border);
-      background: rgba(11,19,36,.35);
-    }
-    a{color:#93c5fd}
-    code{
-      font-family: var(--mono);
-      font-size: 12px;
-      background: rgba(17,28,51,.6);
-      border:1px solid rgba(31,42,68,.7);
-      padding:2px 6px;
-      border-radius: 8px;
-    }
+    .topSearch .field{ margin:0; max-width: 420px; }
   </style>
 </head>
 <body>
 <header>
-  <div class="wrap">
-    <div class="topbar">
-      <div class="brand">
-        <div class="logo"></div>
-        <div class="title">
-          <b>Runs Monitor</b>
-          <span id="subtitle">Dashboard de ejecuciones (árbol + grilla)</span>
-        </div>
-      </div>
-
-      <div class="controls">
-        <div class="control">
-          <label for="runSelect">Run</label>
-          <select id="runSelect"></select>
-        </div>
-
-        <div class="control">
-          <label for="q">Buscar</label>
-          <input id="q" placeholder="block, data object, table..." />
-        </div>
-
-        <button class="btn" id="refreshBtn" title="Refrescar ahora">
-          ⟳ Refrescar
-        </button>
-
-        <div class="pill" title="Estado de actualización">
-          <span class="dot" id="liveDot"></span>
-          <span id="liveText">listo</span>
-        </div>
-      </div>
-    </div>
+  <h1>
+    Migration Status Portal
+    <span class="badge" id="fileBadge">Sin archivo</span>
+  </h1>
+  <div class="right">
+    Persistencia: <b>Local</b> + Export/Import JSON &nbsp;·&nbsp; Tip: <span class="mono">Ctrl + F</span> en la tabla
   </div>
 </header>
 
-<main>
-  <div class="grid">
-    <section class="card sidebar">
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="card sidebar">
+    <div class="section">
+      <div class="row" style="justify-content:space-between;">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.json" />
+        <button class="btn primary" id="applyBtn">Aplicar</button>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <button class="btn soft" id="selectAllBtn">Seleccionar todo</button>
+        <button class="btn soft" id="selectNoneBtn">Seleccionar nada</button>
+        <button class="btn" id="downloadHtmlBtn">Descargar HTML (portal)</button>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <button class="btn" id="saveProfileBtn">Guardar perfil</button>
+        <button class="btn" id="loadProfileBtn">Cargar perfil</button>
+        <button class="btn" id="exportLogBtn">Export log</button>
+        <button class="btn" id="clearLogBtn">Limpiar log</button>
+      </div>
+
+      <div class="hint" style="margin-top:10px;">
+        Soporta <b>XLSX</b> (export) o <b>JSON</b>. Si el XLSX tiene encabezados raros, igual intenta mapear.
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="section">
+      <div class="field">
+        <div class="label">Type</div>
+        <div class="checklist" id="typeList"></div>
+      </div>
+
+      <div class="field">
+        <div class="label">Run name</div>
+        <input type="text" id="runSearch" placeholder="Buscar run..." />
+        <div class="checklist" id="runList"></div>
+      </div>
+
+      <div class="field">
+        <div class="label">Module ID</div>
+        <input type="text" id="moduleSearch" placeholder="Buscar módulo..." />
+        <div class="checklist" id="moduleList"></div>
+      </div>
+
+      <div class="field">
+        <div class="label">Data object</div>
+        <input type="text" id="objectSearch" placeholder="Buscar objeto..." />
+        <div class="checklist" id="objectList"></div>
+      </div>
+
+      <div class="field">
+        <div class="label">Table Groups</div>
+        <input type="text" id="tableGroupSearch" placeholder="Buscar grupo... ej: BUT; /SNP/; *" />
+        <div class="checklist" id="tableGroupList"></div>
+      </div>
+
+      <div class="hint" style="margin-top:8px;">
+        Curvas: usa <b>End date/time</b> o <b>Start + Real runtime</b>. Filas sin tiempo suficiente no se grafican.<br/>
+        %: muestra 1 decimal y no redondea hacia arriba (evita “100% falso”).
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- Charts -->
+    <section class="card">
       <h2>
-        <span>Árbol</span>
-        <small id="treeMeta">—</small>
+        <span>Curva de evolución (por Run name)</span>
+        <small id="curveMeta">—</small>
       </h2>
-      <div class="tree" id="tree"></div>
-      <div class="hint">
-        Fuente: <code>./tasks.json</code> (si no existe, usa demo).<br/>
-        Tip: para producción, apuntá <code>DATA_URL</code> a tu API.
+      <div class="chartBox">
+        <canvas id="chartRun"></canvas>
       </div>
     </section>
 
     <section class="card">
       <h2>
-        <span>Detalle</span>
-        <small id="tableMeta">—</small>
+        <span>Curva por hora (cliente)</span>
+        <small id="hourMeta">Agrupa avance acumulado por hora (según fin del step)</small>
       </h2>
-      <div class="tablewrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Status</th>
-              <th>Type</th>
-              <th>Source</th>
-              <th>Target</th>
-              <th>Folder</th>
-              <th>Run name</th>
-              <th>Block</th>
-              <th>Module ID</th>
-              <th>Data object</th>
-              <th>Table</th>
-              <th class="right"># records</th>
-              <th>Progress</th>
-              <th class="right">Real runtime</th>
-              <th class="right">Process runtime</th>
-              <th class="right">Prep runtime</th>
-              <th class="right">Updated</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
+      <div class="chartBox">
+        <canvas id="chartHour"></canvas>
       </div>
-      <div class="hint" id="footerHint"></div>
     </section>
-  </div>
-</main>
+
+    <!-- Module status -->
+    <section class="card">
+      <h2>
+        <span>Migration Status (por Módulo)</span>
+        <small id="moduleMeta">Semáforo: &lt;50% rojo · 50–80% amarillo · &gt;80% verde</small>
+      </h2>
+      <div class="content">
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>MODULE</th>
+                <th>STAGE</th>
+                <th class="right">%</th>
+              </tr>
+            </thead>
+            <tbody id="moduleTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Objects table -->
+    <section class="card">
+      <div class="topSearch">
+        <div>
+          <b>Status de todos los objetos</b><br/>
+          <span class="hint">Esta tabla RESPETA tus filtros. Si desactivás un módulo/objeto, desaparece.</span>
+        </div>
+        <div class="field">
+          <input type="text" id="globalSearch" placeholder="Buscar (objeto, run, módulo, tabla)..." />
+        </div>
+      </div>
+
+      <div class="pillRow">
+        <label class="pill">
+          <input type="checkbox" id="chkOk" checked />
+          <span class="dot ok"></span> OK (&gt;80%)
+        </label>
+        <label class="pill">
+          <input type="checkbox" id="chkWarn" checked />
+          <span class="dot warn"></span> EN CURSO (50–80%)
+        </label>
+        <label class="pill">
+          <input type="checkbox" id="chkBad" checked />
+          <span class="dot bad"></span> CRÍTICO (&lt;50%)
+        </label>
+
+        <span class="pill" id="statsPill">—</span>
+        <span class="pill" id="timePill">—</span>
+      </div>
+
+      <div class="content" style="padding-top:0;">
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>TYPE</th>
+                <th>RUN</th>
+                <th>MODULE</th>
+                <th>OBJECT</th>
+                <th class="right">STEPS</th>
+                <th class="right">DONE</th>
+                <th class="right">%</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="objTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
 
 <script>
-/**
- * CONFIG
- * - Si vas a tener una API, cambialo a: const DATA_URL = "https://tu-api.com/tasks?project=xxx"
- * - Para demo local: tasks.json al lado de index.html
- */
-const DATA_URL = "./tasks.json";
-const REFRESH_EVERY_MS = 3500;
+/* =========================
+   DATA MODEL
+   =========================
+   Cada fila del log => "task"
+   Objeto agregado => (type + run + module + data_object) con %
+*/
+const LS_KEY_LOG = "msp_log_v1";
+const LS_KEY_PROFILE = "msp_profile_v1";
 
-let ALL = [];
-let CURRENT_RUN = "ALL";
+let RAW_TASKS = [];     // tasks (filas)
+let FILTERS = {
+  type: new Set(),
+  run: new Set(),
+  module: new Set(),
+  object: new Set(),
+  tableGroup: new Set(),
+};
+let UI = {
+  chkOk:true, chkWarn:true, chkBad:true,
+  globalSearch:"",
+  runSearch:"",
+  moduleSearch:"",
+  objectSearch:"",
+  tableGroupSearch:""
+};
 
-function nowISO(){ return new Date().toISOString(); }
+let chartRun, chartHour;
 
-function toPctNumber(p){
-  if (p == null) return 0;
-  const s = String(p).trim();
+function $(id){ return document.getElementById(id); }
+
+function setFileBadge(txt){
+  $("fileBadge").textContent = txt || "Sin archivo";
+}
+
+function pct1(n){
+  // 1 decimal SIN redondear hacia arriba
+  const x = Math.floor((Number(n)||0) * 10) / 10;
+  return x;
+}
+
+function toPctNumber(v){
+  if (v == null) return 0;
+  const s = String(v).trim();
   if (!s) return 0;
   return Number(s.replace("%","")) || 0;
 }
-function fmtPct(n){ return (Math.round(n*10)/10).toFixed(1) + "%"; }
 
-function toSec(val){
-  if (val == null) return 0;
-  if (typeof val === "number") return val;
-  const s = String(val).trim();
-  // soporta "HH:MM:SS" o "MM:SS"
-  if (/^\d{1,2}:\d{2}:\d{2}$/.test(s)){
-    const [h,m,sec] = s.split(":").map(Number);
-    return h*3600 + m*60 + sec;
-  }
-  if (/^\d{1,2}:\d{2}$/.test(s)){
-    const [m,sec] = s.split(":").map(Number);
-    return m*60 + sec;
-  }
-  return Number(s) || 0;
-}
-function fmtHMS(sec){
-  sec = Math.max(0, Math.round(sec||0));
-  const h = String(Math.floor(sec/3600)).padStart(2,"0");
-  const m = String(Math.floor((sec%3600)/60)).padStart(2,"0");
-  const s = String(sec%60).padStart(2,"0");
-  return `${h}:${m}:${s}`;
-}
-
-function statusFromProgress(pct){
-  // si te llega status real, lo podés priorizar
-  if (pct >= 100) return "CO";
-  if (pct > 0) return "PN";
-  return "PE";
-}
-function statusClass(status){
-  if (status === "ER") return "err";
-  if (status === "CO") return "ok";
-  if (status === "PN") return "warn";
-  return "idle";
-}
-
-function pctClass(pct, hasError=false){
-  if (hasError) return "err";
-  if (pct >= 100) return "ok";
-  if (pct > 0) return "warn";
-  return "idle";
-}
-
-function uniq(arr){ return [...new Set(arr)]; }
-
-function setLive(state, text){
-  const dot = document.getElementById("liveDot");
-  const t = document.getElementById("liveText");
-  dot.style.background =
-    state === "ok" ? "var(--ok)" :
-    state === "warn" ? "var(--warn)" :
-    state === "err" ? "var(--err)" : "var(--idle)";
-  t.textContent = text;
-}
-
-async function fetchData(){
-  setLive("warn","actualizando...");
-  try{
-    const res = await fetch(DATA_URL, { cache: "no-store" });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-    setLive("ok","listo");
-    return normalize(data);
-  }catch(e){
-    // fallback demo
-    setLive("err","demo (sin tasks.json)");
-    return normalize(getDemo());
-  }
-}
-
-function normalize(rows){
-  // rows puede ser {tasks:[...]} o [...]
-  const list = Array.isArray(rows) ? rows : (rows.tasks || []);
-  return list.map((r, idx) => {
-    const progress = toPctNumber(r.progress ?? r.Progress ?? r.PROGRESS);
-    const records = Number(r.number_of_records ?? r.records_count ?? r["Number of rec."] ?? 0) || 0;
-
-    const realSec = toSec(r.runtime_real_sec ?? r.real_runtime ?? r["Real runtim."] ?? r["Real runtime"]);
-    const procSec = toSec(r.runtime_process_sec ?? r.process_runtime ?? r["Process ru."] ?? r["Process runtime"]);
-    const prepSec = toSec(r.runtime_prep_sec ?? r.prep_runtime ?? r["Preparati"] ?? r["Preparation"]);
-
-    const status = (r.status ?? r.Status ?? statusFromProgress(progress)) + "";
-
-    return {
-      id: r.id ?? `${r.run_name||r["Run name"]||"run"}-${idx}`,
-      type: r.type ?? r.Type ?? "",
-      source_system: r.source_system ?? r["Source syst."] ?? r.source ?? "",
-      target_system: r.target_system ?? r["Target syst."] ?? r.target ?? "",
-      folder: r.folder ?? r.Folder ?? "",
-      run_name: r.run_name ?? r["Run name"] ?? "",
-      block: r.block ?? r.Block ?? "",
-      module_id: r.module_id ?? r["Module ID"] ?? "",
-      data_object: r.data_object ?? r["Data object"] ?? "",
-      table_name: r.table_name ?? r.Table ?? "",
-      status,
-      progress,          // 0..100
-      records_count: records,
-      runtime_real_sec: realSec,
-      runtime_process_sec: procSec,
-      runtime_prep_sec: prepSec,
-      updated_at: r.updated_at ?? r.Updated ?? nowISO()
-    };
-  });
-}
-
-function applyFilters(){
-  const q = document.getElementById("q").value.trim().toLowerCase();
-  let rows = ALL;
-
-  if (CURRENT_RUN !== "ALL"){
-    rows = rows.filter(r => r.run_name === CURRENT_RUN);
-  }
-  if (q){
-    rows = rows.filter(r => {
-      const hay = `${r.folder} ${r.run_name} ${r.block} ${r.module_id} ${r.data_object} ${r.table_name}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }
-  return rows;
-}
-
-function buildRunSelect(){
-  const sel = document.getElementById("runSelect");
-  const runs = uniq(ALL.map(r => r.run_name).filter(Boolean)).sort();
-  sel.innerHTML = "";
-  const optAll = document.createElement("option");
-  optAll.value = "ALL";
-  optAll.textContent = "Todas";
-  sel.appendChild(optAll);
-
-  for (const rn of runs){
-    const o = document.createElement("option");
-    o.value = rn;
-    o.textContent = rn;
-    sel.appendChild(o);
-  }
-  sel.value = CURRENT_RUN;
-}
-
-function groupObjectPct(rows){
-  // Objeto = run + block + data_object (como hablamos)
-  const map = new Map();
-
-  for (const t of rows){
-    const key = `${t.run_name}||${t.block}||${t.data_object}`;
-    const weight = Math.max(t.records_count || 0, 1);
-    const pct = Math.max(0, Math.min(100, t.progress || 0));
-
-    if (!map.has(key)){
-      map.set(key, {
-        run_name: t.run_name,
-        block: t.block,
-        data_object: t.data_object,
-        sumW: 0,
-        sumWP: 0,
-        items: 0,
-        records_sum: 0,
-        has_error: false
-      });
-    }
-    const g = map.get(key);
-    g.sumW += weight;
-    g.sumWP += pct * weight;
-    g.items += 1;
-    g.records_sum += (t.records_count || 0);
-    g.has_error ||= (String(t.status).toUpperCase() === "ER");
-  }
-
-  return [...map.values()].map(g => ({
-    ...g,
-    pct: g.sumW ? (g.sumWP / g.sumW) : 0
-  }));
-}
-
-function buildTree(rows){
-  const tree = document.getElementById("tree");
-  tree.innerHTML = "";
-
-  const meta = document.getElementById("treeMeta");
-  meta.textContent = `${rows.length} filas`;
-
-  // agregados
-  const objects = groupObjectPct(rows);
-
-  // estructura: run -> block -> objects
-  const byRun = new Map();
-  for (const o of objects){
-    const runKey = o.run_name || "—";
-    if (!byRun.has(runKey)) byRun.set(runKey, new Map());
-    const byBlock = byRun.get(runKey);
-    const blockKey = o.block || "—";
-    if (!byBlock.has(blockKey)) byBlock.set(blockKey, []);
-    byBlock.get(blockKey).push(o);
-  }
-
-  // ordenar
-  const runNames = [...byRun.keys()].sort();
-  for (const runName of runNames){
-    const runBlocks = byRun.get(runName);
-
-    // % run
-    const runObjs = [];
-    for (const arr of runBlocks.values()) runObjs.push(...arr);
-    const runHasError = runObjs.some(x => x.has_error);
-    const runPct = runObjs.length ? runObjs.reduce((a,b)=>a+b.pct,0)/runObjs.length : 0;
-
-    const runDetails = document.createElement("details");
-    runDetails.open = (CURRENT_RUN !== "ALL"); // si filtrás por run, se abre
-
-    const runSummary = document.createElement("summary");
-    runSummary.innerHTML = `
-      <div class="sum-left">
-        <span class="caret"></span>
-        <div class="node-title" title="${escapeHtml(runName)}">${escapeHtml(runName)}</div>
-      </div>
-      <div class="meta">
-        <span class="pct ${pctClass(runPct, runHasError)}">${fmtPct(runPct)}</span>
-      </div>
-    `;
-    runDetails.appendChild(runSummary);
-
-    const runChildren = document.createElement("div");
-    runChildren.className = "children";
-
-    const blockNames = [...runBlocks.keys()].sort();
-    for (const blockName of blockNames){
-      const arr = runBlocks.get(blockName);
-      arr.sort((a,b)=>a.data_object.localeCompare(b.data_object));
-
-      const blockHasError = arr.some(x => x.has_error);
-      const blockPct = arr.length ? arr.reduce((s,x)=>s+x.pct,0)/arr.length : 0;
-
-      const blockDiv = document.createElement("div");
-      blockDiv.className = "child";
-      blockDiv.innerHTML = `
-        <div class="left">
-          <span class="chip">BLOCK</span>
-          <div class="node-title" title="${escapeHtml(blockName)}">${escapeHtml(blockName)}</div>
-        </div>
-        <div class="meta">
-          <span class="pct ${pctClass(blockPct, blockHasError)}">${fmtPct(blockPct)}</span>
-        </div>
-      `;
-
-      const objWrap = document.createElement("div");
-      objWrap.style.padding = "0 0 0 10px";
-      objWrap.style.marginBottom = "10px";
-
-      for (const o of arr){
-        const objDiv = document.createElement("div");
-        objDiv.className = "child";
-        objDiv.style.background = "rgba(11,19,36,.25)";
-        objDiv.innerHTML = `
-          <div class="left">
-            <span class="chip">OBJ</span>
-            <div class="node-title" title="${escapeHtml(o.data_object)}">${escapeHtml(o.data_object)}</div>
-            <span class="badge ${o.has_error ? "err" : (o.pct>=100?"ok": o.pct>0?"warn":"idle")}">
-              ${o.items} items
-            </span>
-          </div>
-          <div class="meta">
-            <span class="pct ${pctClass(o.pct, o.has_error)}">${fmtPct(o.pct)}</span>
-          </div>
-        `;
-
-        // click: filtra rápido por texto
-        objDiv.addEventListener("click", () => {
-          const q = document.getElementById("q");
-          q.value = o.data_object;
-          render();
-        });
-
-        objWrap.appendChild(objDiv);
-      }
-
-      runChildren.appendChild(blockDiv);
-      runChildren.appendChild(objWrap);
-    }
-
-    runDetails.appendChild(runChildren);
-    tree.appendChild(runDetails);
-  }
-}
-
-function buildTable(rows){
-  const tbody = document.getElementById("tbody");
-  tbody.innerHTML = "";
-
-  const meta = document.getElementById("tableMeta");
-  meta.textContent = `${rows.length} filas`;
-
-  for (const r of rows){
-    const tr = document.createElement("tr");
-    const s = String(r.status).toUpperCase();
-    const cls = statusClass(s);
-
-    tr.innerHTML = `
-      <td>
-        <div class="rowStatus">
-          <span class="statusDot ${cls}"></span>
-          <span class="mono">${escapeHtml(s)}</span>
-        </div>
-      </td>
-      <td class="mono">${escapeHtml(r.type || "")}</td>
-      <td>${escapeHtml(r.source_system || "")}</td>
-      <td>${escapeHtml(r.target_system || "")}</td>
-      <td>${escapeHtml(r.folder || "")}</td>
-      <td>${escapeHtml(r.run_name || "")}</td>
-      <td>${escapeHtml(r.block || "")}</td>
-      <td class="mono">${escapeHtml(r.module_id || "")}</td>
-      <td>${escapeHtml(r.data_object || "")}</td>
-      <td class="mono">${escapeHtml(r.table_name || "")}</td>
-      <td class="right mono">${formatInt(r.records_count)}</td>
-      <td>
-        <span class="progressbar"><i style="width:${Math.max(0,Math.min(100,r.progress||0))}%"></i></span>
-        <span class="mono">${fmtPct(r.progress||0)}</span>
-      </td>
-      <td class="right mono">${fmtHMS(r.runtime_real_sec)}</td>
-      <td class="right mono">${fmtHMS(r.runtime_process_sec)}</td>
-      <td class="right mono">${fmtHMS(r.runtime_prep_sec)}</td>
-      <td class="right mono small muted">${escapeHtml(String(r.updated_at).slice(0,19).replace("T"," "))}</td>
-    `;
-    tbody.appendChild(tr);
-  }
-}
-
-function render(){
-  const rows = applyFilters();
-  buildTree(rows);
-  buildTable(rows);
-
-  const footer = document.getElementById("footerHint");
-  const runTxt = (CURRENT_RUN === "ALL") ? "Todas las runs" : CURRENT_RUN;
-  footer.innerHTML = `Mostrando <b>${rows.length}</b> filas — Run: <code>${escapeHtml(runTxt)}</code> — Última actualización: <code>${escapeHtml(LAST_FETCH || "")}</code>`;
-}
-
-function formatInt(n){
-  n = Number(n||0);
-  return n.toLocaleString("es-AR");
+function toInt(v){
+  const n = Number(String(v ?? "").replaceAll(".","").replaceAll(",",""));
+  return Number.isFinite(n) ? n : 0;
 }
 
 function escapeHtml(s){
@@ -761,48 +542,621 @@ function escapeHtml(s){
     .replaceAll("'","&#039;");
 }
 
-let LAST_FETCH = "";
+function parseTimeAny(v){
+  // soporta Date, ISO, "2026-02-25 12:10:26", "25.02.2026 12:10:26"
+  if (!v) return null;
+  if (v instanceof Date && !isNaN(v)) return v;
 
-async function refresh(){
-  const data = await fetchData();
-  ALL = data;
-  LAST_FETCH = new Date().toLocaleString("es-AR");
-  buildRunSelect();
-  render();
+  const s = String(v).trim();
+  if (!s) return null;
+
+  // ISO
+  const d1 = new Date(s);
+  if (!isNaN(d1)) return d1;
+
+  // "YYYY-MM-DD HH:MM:SS"
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (m){
+    const [_,Y,Mo,D,h,mi,se] = m;
+    return new Date(Number(Y), Number(Mo)-1, Number(D), Number(h), Number(mi), Number(se||"0"));
+  }
+
+  // "DD.MM.YYYY HH:MM:SS"
+  const m2 = s.match(/^(\d{2})\.(\d{2})\.(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (m2){
+    const [_,D,Mo,Y,h,mi,se] = m2;
+    return new Date(Number(Y), Number(Mo)-1, Number(D), Number(h), Number(mi), Number(se||"0"));
+  }
+
+  return null;
 }
 
-function wireUI(){
-  const sel = document.getElementById("runSelect");
-  sel.addEventListener("change", () => {
-    CURRENT_RUN = sel.value;
-    render();
+function groupFromTable(tableName){
+  const t = String(tableName||"").trim();
+  if (!t) return "—";
+  if (t.startsWith("/SNP/")) return "/SNP/";
+  if (t.startsWith("/")) return "Z/NAMESPACE";
+  // ejemplo BUT*
+  if (t.startsWith("BUT")) return "BUT*";
+  return t.slice(0,3).toUpperCase();
+}
+
+function classifyPct(p){
+  if (p > 80) return "ok";
+  if (p >= 50) return "warn";
+  return "bad";
+}
+
+function statusLabel(p){
+  const c = classifyPct(p);
+  return c === "ok" ? "OK" : (c === "warn" ? "EN CURSO" : "CRÍTICO");
+}
+
+/* =========================
+   LOAD / SAVE
+   ========================= */
+function saveLogToLocal(){
+  localStorage.setItem(LS_KEY_LOG, JSON.stringify({ tasks: RAW_TASKS }));
+}
+function loadLogFromLocal(){
+  const s = localStorage.getItem(LS_KEY_LOG);
+  if (!s) return false;
+  try{
+    const obj = JSON.parse(s);
+    RAW_TASKS = Array.isArray(obj.tasks) ? obj.tasks : [];
+    setFileBadge("Local");
+    return true;
+  }catch{ return false; }
+}
+
+function saveProfile(){
+  const profile = {
+    FILTERS: {
+      type: [...FILTERS.type],
+      run: [...FILTERS.run],
+      module: [...FILTERS.module],
+      object: [...FILTERS.object],
+      tableGroup: [...FILTERS.tableGroup],
+    },
+    UI
+  };
+  localStorage.setItem(LS_KEY_PROFILE, JSON.stringify(profile));
+  alert("Perfil guardado.");
+}
+function loadProfile(){
+  const s = localStorage.getItem(LS_KEY_PROFILE);
+  if (!s) return alert("No hay perfil guardado.");
+  try{
+    const p = JSON.parse(s);
+    FILTERS.type = new Set(p.FILTERS?.type ?? []);
+    FILTERS.run = new Set(p.FILTERS?.run ?? []);
+    FILTERS.module = new Set(p.FILTERS?.module ?? []);
+    FILTERS.object = new Set(p.FILTERS?.object ?? []);
+    FILTERS.tableGroup = new Set(p.FILTERS?.tableGroup ?? []);
+    UI = { ...UI, ...(p.UI||{}) };
+    // reflejar checks
+    $("chkOk").checked = !!UI.chkOk;
+    $("chkWarn").checked = !!UI.chkWarn;
+    $("chkBad").checked = !!UI.chkBad;
+    $("globalSearch").value = UI.globalSearch || "";
+    $("runSearch").value = UI.runSearch || "";
+    $("moduleSearch").value = UI.moduleSearch || "";
+    $("objectSearch").value = UI.objectSearch || "";
+    $("tableGroupSearch").value = UI.tableGroupSearch || "";
+    alert("Perfil cargado.");
+    renderAll();
+  }catch{
+    alert("Perfil inválido.");
+  }
+}
+
+function exportLog(){
+  const data = JSON.stringify({ tasks: RAW_TASKS }, null, 2);
+  downloadText("export_log.json", data);
+}
+function downloadText(filename, text){
+  const blob = new Blob([text], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function downloadPortal(){
+  // descarga este mismo HTML (útil para enviar)
+  const html = "<!doctype html>\n" + document.documentElement.outerHTML;
+  const blob = new Blob([html], {type:"text/html"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "migration_status_portal.html";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* =========================
+   FILE PARSING
+   ========================= */
+async function parseFile(file){
+  const name = file.name || "";
+  if (name.toLowerCase().endsWith(".json")){
+    const txt = await file.text();
+    const obj = JSON.parse(txt);
+    return normalizeTasks(obj.tasks || obj);
+  }
+
+  // XLSX
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {type:"array"});
+  // agarra la primera hoja no vacía
+  const sheetName = wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
+  return normalizeTasks(rows);
+}
+
+function pick(row, keys){
+  for (const k of keys){
+    if (k in row) return row[k];
+  }
+  return "";
+}
+
+function normalizeTasks(rows){
+  // Mapea headers típicos (y tolera variaciones)
+  return (Array.isArray(rows) ? rows : []).map((r, idx) => {
+    const type = pick(r, ["Type","TYPE","type"]);
+    const run  = pick(r, ["Run name","RUN NAME","Run","run_name","RUN"]);
+    const block= pick(r, ["Block","BLOCK","block"]);
+    const module = pick(r, ["Module ID","MODULE ID","Module","module_id","MODULE"]);
+    const obj = pick(r, ["Data object","DATA OBJECT","Object","data_object","OBJECT"]);
+    const table = pick(r, ["Table","TABLE","table_name"]);
+    const status = pick(r, ["Status","STATUS","status"]);
+    const progress = pick(r, ["Progress","PROGRESS","progress"]);
+    const records = pick(r, ["Number of rec.","Number of records","# records","records_count","RECORDS"]);
+
+    // tiempos (si existen)
+    const endTime = pick(r, ["End date/time","End time","END","end_time","Finished at"]);
+    const startTime = pick(r, ["Start date/time","Start time","START","start_time","Started at"]);
+    const realRt = pick(r, ["Real runtime","Real runtim.","REAL RUNTIME","runtime_real","Real"]);
+    const procRt = pick(r, ["Process runtime","Process ru.","PROCESS","runtime_process"]);
+    const prepRt = pick(r, ["Preparation","Preparati","PREP","runtime_prep"]);
+    const folder = pick(r, ["Folder","FOLDER","folder"]);
+
+    const p = toPctNumber(progress);
+    const rec = toInt(records);
+
+    const end = parseTimeAny(endTime);
+    const start = parseTimeAny(startTime);
+
+    const t = {
+      id: `${run}__${module}__${obj}__${table}__${idx}`,
+      type: String(type||"").trim(),
+      run: String(run||"").trim(),
+      folder: String(folder||"").trim(),
+      block: String(block||"").trim(),
+      module: String(module||"").trim(),
+      object: String(obj||"").trim(),
+      table: String(table||"").trim(),
+      tableGroup: groupFromTable(table),
+      status: String(status||"").trim(),
+      progress: p,
+      records: rec,
+      endTime: end ? end.toISOString() : "",
+      startTime: start ? start.toISOString() : "",
+      realRuntime: String(realRt||"").trim(),
+      processRuntime: String(procRt||"").trim(),
+      prepRuntime: String(prepRt||"").trim(),
+    };
+    return t;
+  }).filter(t => t.run || t.module || t.object || t.table);
+}
+
+/* =========================
+   FILTER UI BUILD
+   ========================= */
+function countBy(list, keyFn){
+  const m = new Map();
+  for (const x of list){
+    const k = keyFn(x) || "—";
+    m.set(k, (m.get(k)||0) + 1);
+  }
+  return m;
+}
+
+function buildChecklist(containerId, valuesMap, selectedSet, searchText=""){
+  const el = $(containerId);
+  el.innerHTML = "";
+
+  const st = (searchText||"").toLowerCase().trim();
+
+  const entries = [...valuesMap.entries()]
+    .filter(([k]) => !st || String(k).toLowerCase().includes(st))
+    .sort((a,b)=> String(a[0]).localeCompare(String(b[0])));
+
+  for (const [val, cnt] of entries){
+    const id = `${containerId}__${val}`.replaceAll(" ","_");
+    const row = document.createElement("label");
+    row.className = "checkitem";
+    row.innerHTML = `
+      <input type="checkbox" ${selectedSet.has(val) ? "checked":""} data-value="${escapeHtml(val)}" />
+      <span title="${escapeHtml(val)}">${escapeHtml(val)}</span>
+      <span class="count">${cnt}</span>
+    `;
+    row.querySelector("input").addEventListener("change", (e)=>{
+      const v = e.target.getAttribute("data-value");
+      if (e.target.checked) selectedSet.add(v);
+      else selectedSet.delete(v);
+    });
+    el.appendChild(row);
+  }
+}
+
+function selectAll(){
+  for (const t of RAW_TASKS){
+    FILTERS.type.add(t.type || "—");
+    FILTERS.run.add(t.run || "—");
+    FILTERS.module.add(t.module || "—");
+    FILTERS.object.add(t.object || "—");
+    FILTERS.tableGroup.add(t.tableGroup || "—");
+  }
+  renderAll();
+}
+function selectNone(){
+  FILTERS.type.clear();
+  FILTERS.run.clear();
+  FILTERS.module.clear();
+  FILTERS.object.clear();
+  FILTERS.tableGroup.clear();
+  renderAll();
+}
+
+/* =========================
+   AGGREGATIONS
+   ========================= */
+function filteredTasks(){
+  const q = (UI.globalSearch||"").toLowerCase().trim();
+
+  let list = RAW_TASKS.slice();
+
+  // checkbox filters
+  const okSet = FILTERS.type.size ? FILTERS.type : null;
+  const runSet = FILTERS.run.size ? FILTERS.run : null;
+  const modSet = FILTERS.module.size ? FILTERS.module : null;
+  const objSet = FILTERS.object.size ? FILTERS.object : null;
+  const grpSet = FILTERS.tableGroup.size ? FILTERS.tableGroup : null;
+
+  list = list.filter(t => {
+    if (okSet && !okSet.has(t.type || "—")) return false;
+    if (runSet && !runSet.has(t.run || "—")) return false;
+    if (modSet && !modSet.has(t.module || "—")) return false;
+    if (objSet && !objSet.has(t.object || "—")) return false;
+    if (grpSet && !grpSet.has(t.tableGroup || "—")) return false;
+
+    if (q){
+      const hay = `${t.type} ${t.run} ${t.module} ${t.object} ${t.table} ${t.block} ${t.folder}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
   });
 
-  const q = document.getElementById("q");
-  q.addEventListener("input", () => render());
-
-  document.getElementById("refreshBtn").addEventListener("click", refresh);
+  return list;
 }
 
-// Demo data (si no existe tasks.json)
-function getDemo(){
-  return [
-    { type:"EXP", source_system:"SOURCE", target_system:"", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"Tables Index creations", module_id:"FICA_DEV", data_object:"INDEX_CREATE_FICA", table_name:"/APP/T1", progress:"100.00%", number_of_records:1, real_runtime:"00:21:25", process_runtime:"00:21:25", prep_runtime:"00:00:00", status:"CO" },
-    { type:"EXP", source_system:"SOURCE", target_system:"", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"Tables Index creations", module_id:"QM", data_object:"INDEX_CREATE_QM", table_name:"/APP/Q1", progress:"100.00%", number_of_records:1, real_runtime:"00:17:26", process_runtime:"00:17:26", prep_runtime:"00:00:00", status:"CO" },
+function aggregateObjects(tasks){
+  // objeto = type+run+module+object (como portal)
+  const m = new Map();
 
-    { type:"IMP", source_system:"SOURCE", target_system:"TARGET", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"Prior Imports FI", module_id:"FI", data_object:"FIGL_MASTER", table_name:"SKA1", progress:"0.00%", number_of_records:0, real_runtime:"00:00:00", process_runtime:"00:00:00", prep_runtime:"00:00:00", status:"PE" },
-    { type:"IMP", source_system:"SOURCE", target_system:"TARGET", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"Prior Imports FI", module_id:"FI", data_object:"FIGL_MASTER", table_name:"SKAS", progress:"0.00%", number_of_records:0, real_runtime:"00:00:00", process_runtime:"00:00:00", prep_runtime:"00:00:00", status:"PE" },
+  for (const t of tasks){
+    const key = `${t.type}||${t.run}||${t.module}||${t.object}`;
+    const weight = Math.max(t.records || 0, 1);   // ponderación
+    const pct = Math.max(0, Math.min(100, t.progress || 0));
 
-    { type:"EXP", source_system:"SOURCE", target_system:"TARGET", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"ISU NNP 2", module_id:"ISU_TM2", data_object:"ISU_EQUIPMENT_TM2", table_name:"EQUI", progress:"100.00%", number_of_records:53123, real_runtime:"01:26:20", process_runtime:"01:26:20", prep_runtime:"00:00:00", status:"CO" },
-    { type:"EXP", source_system:"SOURCE", target_system:"TARGET", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"ISU NNP 2", module_id:"ISU_TM2", data_object:"ISU_EQUIPMENT_TM2", table_name:"EQUZ", progress:"55.86%", number_of_records:9000, real_runtime:"00:44:10", process_runtime:"00:44:10", prep_runtime:"00:00:00", status:"PN" },
-    { type:"EXP", source_system:"SOURCE", target_system:"TARGET", folder:"TM4_IDL", run_name:"TM4_Initial_Load", block:"ISU NNP 3", module_id:"ISU_TM2", data_object:"ISU_INSTALLATION_TM2", table_name:"EADZ", progress:"0.07%", number_of_records:2379122, real_runtime:"00:07:37", process_runtime:"00:07:37", prep_runtime:"00:00:00", status:"PN" }
-  ];
+    if (!m.has(key)){
+      m.set(key, { type:t.type||"—", run:t.run||"—", module:t.module||"—", object:t.object||"—",
+                  steps:0, done:0, sumW:0, sumWP:0 });
+    }
+    const g = m.get(key);
+    g.steps += 1;
+    // done si progress>=100 (o status CO si lo trae)
+    const isDone = (pct >= 100) || (String(t.status).toUpperCase()==="CO");
+    if (isDone) g.done += 1;
+
+    g.sumW += weight;
+    g.sumWP += pct * weight;
+  }
+
+  const out = [...m.values()].map(g => {
+    const rawPct = g.sumW ? (g.sumWP / g.sumW) : 0;
+    const pct = pct1(rawPct);
+    const cls = classifyPct(pct);
+    return { ...g, pct, cls, status: statusLabel(pct) };
+  });
+
+  // semáforo checkboxes
+  out.sort((a,b)=> b.pct - a.pct);
+  return out;
 }
 
-(async function init(){
-  wireUI();
-  await refresh();
-  setInterval(refresh, REFRESH_EVERY_MS);
+function aggregateModules(objRows){
+  const m = new Map();
+  for (const o of objRows){
+    const key = o.module || "—";
+    if (!m.has(key)) m.set(key, { module:key, stage:"—", pctSum:0, n:0 });
+    const g = m.get(key);
+    g.pctSum += o.pct;
+    g.n += 1;
+  }
+  return [...m.values()].map(g => {
+    const pct = g.n ? pct1(g.pctSum / g.n) : 0;
+    return { module:g.module, stage:"—", pct, cls: classifyPct(pct) };
+  }).sort((a,b)=> b.pct - a.pct);
+}
+
+/* =========================
+   CHARTS
+   ========================= */
+function buildRunCurve(objRows){
+  // % promedio por run
+  const m = new Map();
+  for (const o of objRows){
+    const k = o.run || "—";
+    if (!m.has(k)) m.set(k, {sum:0,n:0});
+    const g = m.get(k);
+    g.sum += o.pct; g.n += 1;
+  }
+  const labels = [...m.keys()].sort();
+  const data = labels.map(k => pct1(m.get(k).sum / m.get(k).n));
+
+  $("curveMeta").textContent = `${labels.length} runs`;
+
+  const ctx = $("chartRun");
+  if (chartRun) chartRun.destroy();
+  chartRun = new Chart(ctx, {
+    type:"line",
+    data:{
+      labels,
+      datasets:[{
+        label:"% avance (promedio por run)",
+        data,
+        tension:.25,
+        pointRadius:3
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{ legend:{ display:true } },
+      scales:{ y:{ min:0, max:100, ticks:{ callback:(v)=> v+"%" } } }
+    }
+  });
+}
+
+function buildHourCurve(tasks){
+  // agrupa por hora usando endTime (si existe)
+  const byHour = new Map();
+  for (const t of tasks){
+    const d = t.endTime ? new Date(t.endTime) : null;
+    if (!d || isNaN(d)) continue;
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:00`;
+    if (!byHour.has(key)) byHour.set(key, {sumW:0,sumWP:0});
+    const g = byHour.get(key);
+    const weight = Math.max(t.records||0, 1);
+    const pct = Math.max(0, Math.min(100, t.progress||0));
+    g.sumW += weight;
+    g.sumWP += pct * weight;
+  }
+
+  const labels = [...byHour.keys()].sort();
+  const data = labels.map(k => {
+    const g = byHour.get(k);
+    return g.sumW ? pct1(g.sumWP/g.sumW) : 0;
+  });
+
+  $("hourMeta").textContent = labels.length ? `${labels.length} puntos (por hora)` : "Sin timestamps (End date/time)";
+
+  const ctx = $("chartHour");
+  if (chartHour) chartHour.destroy();
+  chartHour = new Chart(ctx, {
+    type:"line",
+    data:{
+      labels,
+      datasets:[{
+        label:"% acumulado (por hora)",
+        data,
+        tension:.25,
+        pointRadius:2
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{ legend:{ display:true } },
+      scales:{ y:{ min:0, max:100, ticks:{ callback:(v)=> v+"%" } } }
+    }
+  });
+}
+
+/* =========================
+   RENDER
+   ========================= */
+function renderFilters(){
+  const types = countBy(RAW_TASKS, t=> t.type || "—");
+  const runs  = countBy(RAW_TASKS, t=> t.run || "—");
+  const mods  = countBy(RAW_TASKS, t=> t.module || "—");
+  const objs  = countBy(RAW_TASKS, t=> t.object || "—");
+  const grps  = countBy(RAW_TASKS, t=> t.tableGroup || "—");
+
+  // si el set está vacío (primer carga), por default selecciona todo
+  const ensureDefault = (set, map) => {
+    if (set.size === 0){
+      for (const k of map.keys()) set.add(k);
+    }
+  };
+  ensureDefault(FILTERS.type, types);
+  ensureDefault(FILTERS.run, runs);
+  ensureDefault(FILTERS.module, mods);
+  ensureDefault(FILTERS.object, objs);
+  ensureDefault(FILTERS.tableGroup, grps);
+
+  buildChecklist("typeList", types, FILTERS.type);
+  buildChecklist("runList", runs, FILTERS.run, UI.runSearch);
+  buildChecklist("moduleList", mods, FILTERS.module, UI.moduleSearch);
+  buildChecklist("objectList", objs, FILTERS.object, UI.objectSearch);
+  buildChecklist("tableGroupList", grps, FILTERS.tableGroup, UI.tableGroupSearch);
+}
+
+function renderTables(){
+  const tasks = filteredTasks();
+  const objRows = aggregateObjects(tasks);
+
+  // aplicar semáforo checkbox
+  const showOk = $("chkOk").checked;
+  const showWarn = $("chkWarn").checked;
+  const showBad = $("chkBad").checked;
+
+  const filteredObj = objRows.filter(o => {
+    if (o.cls === "ok") return showOk;
+    if (o.cls === "warn") return showWarn;
+    return showBad;
+  });
+
+  // stats pill
+  const okN = filteredObj.filter(o=>o.cls==="ok").length;
+  const warnN = filteredObj.filter(o=>o.cls==="warn").length;
+  const badN = filteredObj.filter(o=>o.cls==="bad").length;
+  $("statsPill").innerHTML = `Objetos: <span class="mono">${filteredObj.length}</span> · OK <span class="mono">${okN}</span> · EN CURSO <span class="mono">${warnN}</span> · CRÍTICO <span class="mono">${badN}</span>`;
+
+  // time pill
+  $("timePill").innerHTML = `Filas (tasks): <span class="mono">${tasks.length}</span>`;
+
+  // Objects table
+  const tb = $("objTbody");
+  tb.innerHTML = "";
+  for (const o of filteredObj){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="mono">${escapeHtml(o.type)}</td>
+      <td>${escapeHtml(o.run)}</td>
+      <td class="mono">${escapeHtml(o.module)}</td>
+      <td>${escapeHtml(o.object)}</td>
+      <td class="right mono">${o.steps}</td>
+      <td class="right mono">${o.done}</td>
+      <td class="right mono">
+        <span class="progressBar"><i style="width:${Math.max(0,Math.min(100,o.pct))}%"></i></span>
+        ${o.pct.toFixed(1)}%
+      </td>
+      <td>
+        <span class="statusTag ${o.cls}">
+          <span class="sDot"></span>
+          ${escapeHtml(o.status)}
+        </span>
+      </td>
+    `;
+    tb.appendChild(tr);
+  }
+
+  // Module table
+  const mods = aggregateModules(objRows);
+  const mtb = $("moduleTbody");
+  mtb.innerHTML = "";
+  for (const m of mods){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="mono">${escapeHtml(m.module)}</td>
+      <td class="muted">—</td>
+      <td class="right mono">${m.pct.toFixed(1)}%</td>
+    `;
+    mtb.appendChild(tr);
+  }
+
+  // Charts
+  buildRunCurve(objRows);
+  buildHourCurve(tasks);
+}
+
+function renderAll(){
+  renderFilters();
+  renderTables();
+  saveLogToLocal(); // persistencia automática
+}
+
+/* =========================
+   EVENTS
+   ========================= */
+$("applyBtn").addEventListener("click", ()=> renderAll());
+$("selectAllBtn").addEventListener("click", selectAll);
+$("selectNoneBtn").addEventListener("click", selectNone);
+$("downloadHtmlBtn").addEventListener("click", downloadPortal);
+$("saveProfileBtn").addEventListener("click", saveProfile);
+$("loadProfileBtn").addEventListener("click", loadProfile);
+$("exportLogBtn").addEventListener("click", exportLog);
+$("clearLogBtn").addEventListener("click", ()=>{
+  if (!confirm("¿Seguro que querés limpiar el log local?")) return;
+  RAW_TASKS = [];
+  localStorage.removeItem(LS_KEY_LOG);
+  setFileBadge("Sin archivo");
+  renderAll();
+});
+
+$("globalSearch").addEventListener("input", (e)=>{
+  UI.globalSearch = e.target.value || "";
+  renderTables();
+});
+
+$("runSearch").addEventListener("input", (e)=>{
+  UI.runSearch = e.target.value || "";
+  renderFilters();
+});
+$("moduleSearch").addEventListener("input", (e)=>{
+  UI.moduleSearch = e.target.value || "";
+  renderFilters();
+});
+$("objectSearch").addEventListener("input", (e)=>{
+  UI.objectSearch = e.target.value || "";
+  renderFilters();
+});
+$("tableGroupSearch").addEventListener("input", (e)=>{
+  UI.tableGroupSearch = e.target.value || "";
+  renderFilters();
+});
+
+$("chkOk").addEventListener("change", ()=>{
+  UI.chkOk = $("chkOk").checked;
+  renderTables();
+});
+$("chkWarn").addEventListener("change", ()=>{
+  UI.chkWarn = $("chkWarn").checked;
+  renderTables();
+});
+$("chkBad").addEventListener("change", ()=>{
+  UI.chkBad = $("chkBad").checked;
+  renderTables();
+});
+
+$("fileInput").addEventListener("change", async (e)=>{
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try{
+    const tasks = await parseFile(file);
+    RAW_TASKS = tasks;
+    setFileBadge(file.name);
+    // reset filtros para que se armen con lo nuevo
+    FILTERS.type.clear(); FILTERS.run.clear(); FILTERS.module.clear(); FILTERS.object.clear(); FILTERS.tableGroup.clear();
+    renderAll();
+  }catch(err){
+    console.error(err);
+    alert("No pude leer el archivo. Si querés, pasame un sample y ajusto el mapeo de columnas.");
+  }
+});
+
+/* =========================
+   INIT
+   ========================= */
+(function init(){
+  const ok = loadLogFromLocal();
+  if (!ok){
+    setFileBadge("Sin archivo");
+  }
+  renderAll();
 })();
 </script>
 </body>
