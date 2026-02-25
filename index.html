@@ -201,7 +201,7 @@
     table{
       width:100%;
       border-collapse: collapse;
-      min-width: 1050px;
+      min-width: 1200px;
       font-size:12.5px;
     }
     thead th{
@@ -231,6 +231,7 @@
       background:#fff; font-size:12px; color:#344054;
     }
     .statusTag .sDot{ width:8px; height:8px; border-radius:999px; background:#98a2b3; }
+
     .statusTag.ok{ border-color: rgba(18,183,106,.25); background: rgba(18,183,106,.06); }
     .statusTag.ok .sDot{ background: var(--ok); }
     .statusTag.warn{ border-color: rgba(247,144,9,.25); background: rgba(247,144,9,.06); }
@@ -260,7 +261,7 @@
     <span class="badge" id="fileBadge">Sin archivo</span>
   </h1>
   <div class="right">
-    Folder → Run → Object → Tables · Persistencia local · Export/Import JSON
+    Orden: Prior Export → Export → Last Export → Prior Import → Import → Last Import
   </div>
 </header>
 
@@ -285,15 +286,15 @@
       </div>
 
       <div class="hint" style="margin-top:10px;">
-        Cargá tu <b>XLSX</b> exportado o un <b>JSON</b> previamente exportado desde este portal.
-        El % de Object se calcula agregando sus tablas (ponderado por <span class="mono">#records</span>).
+        Cargá tu <b>XLSX</b> exportado o un <b>JSON</b>. El % de Object se calcula agregando sus tablas
+        (ponderado por <span class="mono">#records</span>, con fallback a 1 si viene 0).
       </div>
     </div>
 
     <div class="section">
       <div class="field">
         <div class="label">Filtros (checkbox)</div>
-        <div class="hint">Estos filtros afectan el árbol y la tabla.</div>
+        <div class="hint">Afectan el árbol y la tabla.</div>
       </div>
 
       <div class="field">
@@ -317,6 +318,11 @@
         <div class="label">Buscar (global)</div>
         <input type="text" id="globalSearch" placeholder="Buscar: object, module, table, block..." />
       </div>
+
+      <div class="hint" style="margin-top:10px;">
+        Status: UP Unprocessed · ER Erroneous · UN Unknown · CO Complete · PR Running · IN Incomplete · PN Pending ·
+        PP Preparation · RL Released · WA Waiting · SC Scout complete · PE Preparation erroneous
+      </div>
     </div>
   </aside>
 
@@ -337,7 +343,7 @@
     <div class="treeWrap" id="tree"></div>
 
     <div class="mainHead" style="border-top:1px solid var(--border); border-bottom:0;">
-      <h2>Detalle de tablas (filtrado)</h2>
+      <h2>Detalle de tablas</h2>
       <small class="mono" id="tableMeta">—</small>
     </div>
     <div class="tableWrap">
@@ -345,6 +351,7 @@
         <thead>
           <tr>
             <th>FOLDER</th>
+            <th>STAGE</th>
             <th>RUN</th>
             <th>TYPE</th>
             <th>MODULE</th>
@@ -365,7 +372,59 @@
 <input type="file" id="importInput" accept=".json" style="display:none" />
 
 <script>
-  const LS_KEY = "msp_portal_log_v2";
+  const LS_KEY = "msp_portal_log_v3";
+
+  // ===== STATUS mapping =====
+  const STATUS_INFO = {
+    UP: { label: "Unprocessed", cls: "warn" },
+    ER: { label: "Erroneous", cls: "bad" },
+    UN: { label: "Unknown", cls: "warn" },
+    CO: { label: "Complete", cls: "ok" },
+    PR: { label: "Running", cls: "warn" },
+    IN: { label: "Incomplete", cls: "warn" },
+    PN: { label: "Pending", cls: "warn" },
+    PP: { label: "Preparation", cls: "warn" },
+    RL: { label: "Released", cls: "warn" },
+    WA: { label: "Waiting", cls: "warn" },
+    SC: { label: "Scout complete", cls: "ok" },
+    PE: { label: "Preparation erroneous", cls: "bad" },
+  };
+  function statusLabel(code){
+    const c = String(code||"").toUpperCase().trim();
+    return STATUS_INFO[c]?.label || (c || "—");
+  }
+  function statusClass(code){
+    const c = String(code||"").toUpperCase().trim();
+    return STATUS_INFO[c]?.cls || "warn";
+  }
+
+  // ===== Stage ordering =====
+  const STAGE_ORDER = [
+    "PRIOR EXPORT",
+    "EXPORT",
+    "LAST EXPORT",
+    "PRIOR IMPORT",
+    "IMPORT",
+    "LAST IMPORT",
+  ];
+  function stageRank(stage){
+    const s = String(stage||"").toUpperCase().trim();
+    const idx = STAGE_ORDER.indexOf(s);
+    return idx === -1 ? 999 : idx;
+  }
+  function detectStage(t){
+    const hay = `${t.folder} ${t.run} ${t.block}`.toUpperCase();
+
+    if (hay.includes("PRIOR") && hay.includes("EXPORT")) return "Prior Export";
+    if (hay.includes("LAST") && hay.includes("EXPORT")) return "Last Export";
+    if (hay.includes("EXPORT")) return "Export";
+
+    if (hay.includes("PRIOR") && hay.includes("IMPORT")) return "Prior Import";
+    if (hay.includes("LAST") && hay.includes("IMPORT")) return "Last Import";
+    if (hay.includes("IMPORT")) return "Import";
+
+    return "";
+  }
 
   let TASKS = []; // filas “tabla”
   let FILTERS = {
@@ -376,7 +435,6 @@
   };
 
   function $(id){ return document.getElementById(id); }
-
   function setFileBadge(txt){ $("fileBadge").textContent = txt || "Sin archivo"; }
 
   function escapeHtml(s){
@@ -394,23 +452,19 @@
     if (!s) return 0;
     return Number(s.replace("%","")) || 0;
   }
-
   function toInt(v){
     const n = Number(String(v ?? "").replaceAll(".","").replaceAll(",",""));
     return Number.isFinite(n) ? n : 0;
   }
-
   function pct1NoUp(n){
     // 1 decimal SIN redondear hacia arriba
     return Math.floor((Number(n)||0) * 10) / 10;
   }
-
   function classifyPct(p){
     if (p > 80) return "ok";
     if (p >= 50) return "warn";
     return "bad";
   }
-
   function statusLabelFromPct(p){
     const c = classifyPct(p);
     return c === "ok" ? "OK" : (c === "warn" ? "EN CURSO" : "CRÍTICO");
@@ -452,7 +506,6 @@
   }
 
   function ensureDefaultSelections(){
-    // si está vacío, default = todo
     const folders = countBy(TASKS, t=>t.folder);
     const runs = countBy(TASKS, t=>t.run);
     const types = countBy(TASKS, t=>t.type);
@@ -464,26 +517,24 @@
 
   function filteredTasks(){
     const q = (FILTERS.q||"").toLowerCase().trim();
-
     return TASKS.filter(t=>{
       if (FILTERS.folders.size && !FILTERS.folders.has(t.folder || "—")) return false;
       if (FILTERS.runs.size && !FILTERS.runs.has(t.run || "—")) return false;
       if (FILTERS.types.size && !FILTERS.types.has(t.type || "—")) return false;
 
       if (q){
-        const hay = `${t.folder} ${t.run} ${t.type} ${t.module} ${t.object} ${t.table} ${t.block}`.toLowerCase();
+        const hay = `${t.folder} ${t.stage} ${t.run} ${t.type} ${t.module} ${t.object} ${t.table} ${t.block}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
   }
 
-  // Agregado: % Object = sum(progress * weight)/sum(weight)
-  // weight = max(#records,1)
+  // ===== Aggregations =====
+  // Object % = sum(progress*weight)/sum(weight) where weight=max(#records,1)
   function aggregateObjectPct(tasks){
     const m = new Map();
     for (const t of tasks){
-      // Object dentro de Run dentro de Folder
       const key = `${t.folder}||${t.run}||${t.object}`;
       const weight = Math.max(t.records || 0, 1);
       const pct = Math.max(0, Math.min(100, t.progress || 0));
@@ -491,6 +542,7 @@
       if (!m.has(key)){
         m.set(key, {
           folder: t.folder || "—",
+          stage: t.stage || "",
           run: t.run || "—",
           object: t.object || "—",
           module: t.module || "—",
@@ -499,6 +551,9 @@
         });
       }
       const g = m.get(key);
+      // stage: si hay distintos, nos quedamos con el primero no vacío
+      if (!g.stage && t.stage) g.stage = t.stage;
+
       g.sumW += weight;
       g.sumWP += pct * weight;
       g.tables.push(t);
@@ -516,9 +571,10 @@
     for (const o of objects){
       const key = `${o.folder}||${o.run}`;
       if (!m.has(key)){
-        m.set(key, { folder:o.folder, run:o.run, sum:0, n:0, objects:[] });
+        m.set(key, { folder:o.folder, run:o.run, stage:o.stage||"", sum:0, n:0, objects:[] });
       }
       const g = m.get(key);
+      if (!g.stage && o.stage) g.stage = o.stage;
       g.sum += o.pct;
       g.n += 1;
       g.objects.push(o);
@@ -547,11 +603,6 @@
     });
   }
 
-  function pctClass(p){
-    const cls = classifyPct(p);
-    return cls;
-  }
-
   function render(){
     ensureDefaultSelections();
 
@@ -571,17 +622,15 @@
 
     $("metaText").textContent = `${tasks.length} tablas · ${objects.length} objects · ${runsAgg.length} runs · ${foldersAgg.length} folders`;
 
-    // pills
     const okN = objects.filter(o=>o.cls==="ok").length;
     const warnN = objects.filter(o=>o.cls==="warn").length;
     const badN = objects.filter(o=>o.cls==="bad").length;
     $("pillCounts").innerHTML = `Objects: <span class="mono">${objects.length}</span> · OK <span class="mono">${okN}</span> · EN CURSO <span class="mono">${warnN}</span> · CRÍTICO <span class="mono">${badN}</span>`;
 
-    // TREE: Folder -> Run -> Object -> Tables
+    // TREE: Folder -> Run (sorted by stage order) -> Object -> Tables
     const tree = $("tree");
     tree.innerHTML = "";
 
-    // sort folders by name
     foldersAgg.sort((a,b)=> a.folder.localeCompare(b.folder));
     for (const f of foldersAgg){
       const folderDetails = document.createElement("details");
@@ -595,7 +644,7 @@
             <div class="nodeTitle" title="${escapeHtml(f.folder)}">${escapeHtml(f.folder)}</div>
           </div>
           <div class="meta">
-            <span class="pct ${pctClass(f.pct)}">${f.pct.toFixed(1)}%</span>
+            <span class="pct ${f.cls}">${f.pct.toFixed(1)}%</span>
           </div>
         </summary>
         <div class="children"></div>
@@ -603,21 +652,28 @@
 
       const folderChildren = folderDetails.querySelector(".children");
 
-      // runs inside folder
-      const runsList = f.runs.slice().sort((a,b)=> a.run.localeCompare(b.run));
+      const runsList = f.runs.slice().sort((a,b)=> {
+        const ar = stageRank(a.stage);
+        const br = stageRank(b.stage);
+        if (ar !== br) return ar - br;
+        return a.run.localeCompare(b.run);
+      });
+
       for (const r of runsList){
         const runDetails = document.createElement("details");
         runDetails.open = false;
 
+        const stageTxt = r.stage ? r.stage : "—";
         runDetails.innerHTML = `
           <summary>
             <div class="sumLeft">
               <span class="caret"></span>
               <span class="chip">RUN</span>
               <div class="nodeTitle" title="${escapeHtml(r.run)}">${escapeHtml(r.run)}</div>
+              <span class="chip" title="Stage">${escapeHtml(stageTxt)}</span>
             </div>
             <div class="meta">
-              <span class="pct ${pctClass(r.pct)}">${r.pct.toFixed(1)}%</span>
+              <span class="pct ${r.cls}">${r.pct.toFixed(1)}%</span>
             </div>
           </summary>
           <div class="children"></div>
@@ -625,7 +681,6 @@
 
         const runChildren = runDetails.querySelector(".children");
 
-        // objects inside run
         const objList = r.objects.slice().sort((a,b)=> a.object.localeCompare(b.object));
         for (const o of objList){
           const objDetails = document.createElement("details");
@@ -637,29 +692,37 @@
                 <span class="caret"></span>
                 <span class="chip">OBJ</span>
                 <div class="nodeTitle" title="${escapeHtml(o.object)}">${escapeHtml(o.object)}</div>
+                <span class="chip mono" title="Module">${escapeHtml(o.module || "—")}</span>
               </div>
               <div class="meta">
-                <span class="pct ${pctClass(o.pct)}">${o.pct.toFixed(1)}%</span>
+                <span class="pct ${o.cls}">${o.pct.toFixed(1)}%</span>
               </div>
             </summary>
             <div class="children"></div>
           `;
 
           const objChildren = objDetails.querySelector(".children");
-
-          // tables inside object
           const tables = o.tables.slice().sort((a,b)=> (a.table||"").localeCompare(b.table||""));
           for (const t of tables){
             const row = document.createElement("div");
             row.className = "childRow";
+
+            const sCode = (t.status_code || "").toUpperCase();
+            const sCls = statusClass(sCode);
+
             row.innerHTML = `
               <div class="sumLeft" style="gap:10px;">
                 <span class="chip">TAB</span>
                 <span class="mono" title="${escapeHtml(t.table)}">${escapeHtml(t.table || "—")}</span>
-                <span class="mono" style="color:var(--muted);">#${formatInt(t.records)}</span>
+                <span class="mono" style="color:var(--muted);" title="#records">#${formatInt(t.records)}</span>
+                <span class="statusTag ${sCls}" title="${escapeHtml(statusLabel(sCode))}">
+                  <span class="sDot"></span>
+                  <span class="mono">${escapeHtml(sCode || "—")}</span>
+                  <span style="color:var(--muted);">· ${escapeHtml(statusLabel(sCode))}</span>
+                </span>
               </div>
               <div class="meta">
-                <span class="pct ${pctClass(t.progress)}">${pct1NoUp(t.progress).toFixed(1)}%</span>
+                <span class="pct ${classifyPct(pct1NoUp(t.progress))}">${pct1NoUp(t.progress).toFixed(1)}%</span>
               </div>
             `;
             objChildren.appendChild(row);
@@ -674,15 +737,34 @@
       tree.appendChild(folderDetails);
     }
 
-    // TABLE
+    // TABLE (detail)
     const tb = $("tbody");
     tb.innerHTML = "";
     $("tableMeta").textContent = `Mostrando ${tasks.length} filas`;
-    for (const t of tasks){
+
+    // Orden de tabla: Folder, Stage, Run, Object, Table
+    const tasksSorted = tasks.slice().sort((a,b)=>{
+      const fd = (a.folder||"").localeCompare(b.folder||"");
+      if (fd !== 0) return fd;
+      const sr = stageRank(a.stage) - stageRank(b.stage);
+      if (sr !== 0) return sr;
+      const rd = (a.run||"").localeCompare(b.run||"");
+      if (rd !== 0) return rd;
+      const od = (a.object||"").localeCompare(b.object||"");
+      if (od !== 0) return od;
+      return (a.table||"").localeCompare(b.table||"");
+    });
+
+    for (const t of tasksSorted){
       const cls = classifyPct(pct1NoUp(t.progress));
+      const sCode = (t.status_code || "").toUpperCase();
+      const sCls = statusClass(sCode);
+      const stageTxt = t.stage ? t.stage : "—";
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHtml(t.folder)}</td>
+        <td>${escapeHtml(stageTxt)}</td>
         <td>${escapeHtml(t.run)}</td>
         <td class="mono">${escapeHtml(t.type)}</td>
         <td class="mono">${escapeHtml(t.module)}</td>
@@ -694,9 +776,10 @@
           ${pct1NoUp(t.progress).toFixed(1)}%
         </td>
         <td>
-          <span class="statusTag ${cls}">
+          <span class="statusTag ${sCls}" title="${escapeHtml(statusLabel(sCode))}">
             <span class="sDot"></span>
-            ${escapeHtml(t.status || statusLabelFromPct(pct1NoUp(t.progress)))}
+            <span class="mono">${escapeHtml(sCode || "—")}</span>
+            <span style="color:var(--muted);">· ${escapeHtml(statusLabel(sCode))}</span>
           </span>
         </td>
       `;
@@ -743,9 +826,13 @@
         object: String(object||"—").trim() || "—",
         table: String(table||"—").trim() || "—",
         status: String(status||"").trim(),
+        status_code: String(status||"").toUpperCase().trim(),
         progress: toPctNumber(progress),
-        records: toInt(records)
+        records: toInt(records),
       };
+
+      t.stage = detectStage(t);
+
       return t;
     }).filter(t => t.folder !== "—" || t.run !== "—" || t.object !== "—" || t.table !== "—");
   }
@@ -854,7 +941,6 @@
 
   // ===== Init =====
   (function init(){
-    // load local
     const s = localStorage.getItem(LS_KEY);
     if (s){
       try{
