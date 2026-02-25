@@ -45,7 +45,8 @@
       grid-template-columns: 360px 1fr;
       gap:16px;
       padding: 0 20px 22px;
-      max-width: 1500px;
+       max-width: 100%;
+
       margin: 0 auto;
     }
     @media (max-width: 1100px){ .layout{ grid-template-columns: 1fr; } }
@@ -201,21 +202,22 @@
     table{
       width:100%;
       border-collapse: collapse;
-      min-width: 1200px;
+      min-width: 1600px;   /* antes 1200 */
       font-size:12.5px;
     }
     thead th{
       position: sticky; top:0; z-index:2;
       background:#fff;
       text-align:left;
-      padding:10px 10px;
+       padding:12px 16px;
       border-bottom:1px solid var(--border);
       color:#475467;
       font-weight:600;
       white-space:nowrap;
+       
     }
     tbody td{
-      padding:9px 10px;
+        padding:11px 16px;
       border-bottom:1px solid #f0f2f6;
       white-space:nowrap;
       color:#101828;
@@ -240,7 +242,7 @@
     .statusTag.bad .sDot{ background: var(--bad); }
 
     .progressBar{
-      width: 120px; height: 8px; border-radius:999px;
+      width: 180px; height: 8px; border-radius:999px;
       border:1px solid var(--border);
       background:#f2f4f7;
       overflow:hidden; display:inline-block;
@@ -251,6 +253,9 @@
       width:0%;
       background: linear-gradient(90deg, #60a5fa, #12b76a);
     }
+    td, th{
+  white-space: nowrap;
+}
   </style>
 </head>
 
@@ -261,8 +266,7 @@
     <span class="badge" id="fileBadge">Sin archivo</span>
   </h1>
   <div class="right">
-    Orden: Prior Export → Export → Last Export → Prior Import → Import → Last Import
-  </div>
+      Orden: Preparation → Preselection → Prior Export → Export → Last Export → Prior Import → Import → Last Import  </div>
 </header>
 
 <div class="layout">
@@ -399,33 +403,40 @@
   }
 
   // ===== Stage ordering =====
-  const STAGE_ORDER = [
-    "PRIOR EXPORT",
-    "EXPORT",
-    "LAST EXPORT",
-    "PRIOR IMPORT",
-    "IMPORT",
-    "LAST IMPORT",
-  ];
+const STAGE_ORDER = [
+  "PREPARATION",
+  "PRESELECTION",
+  "PRIOR EXPORT",
+  "EXPORT",
+  "LAST EXPORT",
+  "PRIOR IMPORT",
+  "IMPORT",
+  "LAST IMPORT",
+];
   function stageRank(stage){
     const s = String(stage||"").toUpperCase().trim();
     const idx = STAGE_ORDER.indexOf(s);
     return idx === -1 ? 999 : idx;
   }
-  function detectStage(t){
-    const hay = `${t.folder} ${t.run} ${t.block}`.toUpperCase();
+function detectStage(t){
+  const hay = `${t.folder} ${t.run} ${t.block}`.toUpperCase();
 
-    if (hay.includes("PRIOR") && hay.includes("EXPORT")) return "Prior Export";
-    if (hay.includes("LAST") && hay.includes("EXPORT")) return "Last Export";
-    if (hay.includes("EXPORT")) return "Export";
+  // 1) Preparation / Preselection (primero, porque si no te lo pisa EXPORT/IMPORT)
+  if (hay.includes("PREPARATION")) return "Preparation";
+  if (hay.includes("PRESELECTION")) return "Preselection";
 
-    if (hay.includes("PRIOR") && hay.includes("IMPORT")) return "Prior Import";
-    if (hay.includes("LAST") && hay.includes("IMPORT")) return "Last Import";
-    if (hay.includes("IMPORT")) return "Import";
+  // 2) Export
+  if (hay.includes("PRIOR") && hay.includes("EXPORT")) return "Prior Export";
+  if (hay.includes("LAST") && hay.includes("EXPORT")) return "Last Export";
+  if (hay.includes("EXPORT")) return "Export";
 
-    return "";
-  }
+  // 3) Import
+  if (hay.includes("PRIOR") && hay.includes("IMPORT")) return "Prior Import";
+  if (hay.includes("LAST") && hay.includes("IMPORT")) return "Last Import";
+  if (hay.includes("IMPORT")) return "Import";
 
+  return "";
+}
   let TASKS = []; // filas “tabla”
   let FILTERS = {
     folders: new Set(),
