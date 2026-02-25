@@ -540,6 +540,12 @@ function mostCommon(arr){
     // 1 decimal SIN redondear hacia arriba
     return Math.floor((Number(n)||0) * 10) / 10;
   }
+  
+  function classifyPct(p){
+    if (p > 80) return "ok";
+    if (p >= 50) return "warn";
+    return "bad";
+  }
   function groupKeyFromPct(p){
   const cls = classifyPct(p);
   return cls === "bad" ? "CRÍTICO" : (cls === "warn" ? "EN CURSO" : "OK");
@@ -550,11 +556,6 @@ function groupRank(name){
   if (name === "EN CURSO") return 1;
   return 2; // OK
 }
-  function classifyPct(p){
-    if (p > 80) return "ok";
-    if (p >= 50) return "warn";
-    return "bad";
-  }
   function statusLabelFromPct(p){
     const c = classifyPct(p);
     return c === "ok" ? "OK" : (c === "warn" ? "EN CURSO" : "CRÍTICO");
@@ -905,20 +906,7 @@ function fillMissingRunsWithZero(tasks, runsAgg){
     tb.innerHTML = "";
     $("tableMeta").textContent = `Mostrando ${tasks.length} filas`;
 
-    // Orden de tabla: Folder, Stage, Run, Object, Table
-    const tasksSorted = tasks.slice().sort((a,b)=>{
-      const fd = (a.folder||"").localeCompare(b.folder||"");
-      if (fd !== 0) return fd;
-      const sr = stageRank(a.stage) - stageRank(b.stage);
-      if (sr !== 0) return sr;
-      const rd = (a.run||"").localeCompare(b.run||"");
-      if (rd !== 0) return rd;
-      const od = (a.object||"").localeCompare(b.object||"");
-      if (od !== 0) return od;
-      return (a.table||"").localeCompare(b.table||"");
-    });
-
-      // Orden base (como ya tenías)
+    // Orden base (como ya tenías)
 const tasksSorted = tasks.slice().sort((a,b)=>{
   const fd = (a.folder||"").localeCompare(b.folder||"");
   if (fd !== 0) return fd;
